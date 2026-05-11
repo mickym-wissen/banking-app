@@ -50,7 +50,7 @@ management:
     export:
       datadog:
         enabled: false
-        api-key: "6fe898c37e1d9b5cc9c96cbcc94d7f65"   # set via env var
+        api-key: "${DD_API_KEY}"   # set via env var
         application-key: ${DD_APP_KEY:}
         uri: https://api.datadoghq.com                # change region if needed
         step: 60s                                      # push interval
