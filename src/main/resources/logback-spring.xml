@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <!-- Datadog log pipeline keys -->
+            <fieldNames>
+                <timestamp>timestamp</timestamp>
+                <message>message</message>
+                <logger>logger</logger>
+                <thread>thread</thread>
+                <levelValue>[ignore]</levelValue>
+            </fieldNames>
+            <!-- Inject dd.trace_id / dd.span_id so logs correlate with APM traces -->
+            <includeMdcKeyName>dd.trace_id</includeMdcKeyName>
+            <includeMdcKeyName>dd.span_id</includeMdcKeyName>
+            <includeMdcKeyName>dd.service</includeMdcKeyName>
+            <includeMdcKeyName>dd.env</includeMdcKeyName>
+            <includeMdcKeyName>dd.version</includeMdcKeyName>
+            <!-- Extra static fields -->
+            <customFields>{"service":"banking-app"}</customFields>
+        </encoder>
+    </appender>
+
+    <!-- File appender – mount /var/log in Docker and point Datadog agent here -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/banking-app.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/banking-app.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>7</maxHistory>
+        </rollingPolicy>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
+    </root>
+
+    <logger name="com.demo.banking" level="DEBUG"/>
+</configuration>

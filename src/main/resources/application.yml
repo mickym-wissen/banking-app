@@ -1,0 +1,73 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: banking-app
+  datasource:
+    url: jdbc:h2:mem:bankingdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  h2:
+    console:
+      enabled: true          # http://localhost:8080/h2-console
+      path: /h2-console
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.H2Dialect
+
+#PostgreSql Connection
+#spring:
+#  datasource:
+#    url: jdbc:postgresql://<rds-endpoint>:5432/bankingdb
+#    username: postgres
+#    password: your-password
+#    driver-class-name: org.postgresql.Driver
+#  jpa:
+#    properties:
+#      hibernate:
+#        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+# ─── Actuator ────────────────────────────────────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus   # Datadog agent scrapes /actuator/prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      env: ${DD_ENV:dev}
+    export:
+      datadog:
+        enabled: false
+        api-key: "6fe898c37e1d9b5cc9c96cbcc94d7f65"   # set via env var
+        application-key: ${DD_APP_KEY:}
+        uri: https://api.datadoghq.com                # change region if needed
+        step: 60s                                      # push interval
+        descriptions: true
+  tracing:
+    sampling:
+      probability: 1.0                                 # 100 % sampling in dev
+
+# ─── Datadog APM agent (set via JVM args in pom.xml / Dockerfile) ─────────────
+# -Ddd.service=banking-app
+# -Ddd.env=dev
+# -Ddd.logs.injection=true     <- injects trace_id/span_id into log records
+
+# ─── Logging ──────────────────────────────────────────────────────────────────
+logging:
+  level:
+    root: INFO
+    com.demo.banking: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

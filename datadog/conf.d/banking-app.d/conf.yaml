@@ -1,0 +1,11 @@
+logs:
+  - type: file
+    path: /var/log/banking-app/banking-app.log
+    service: banking-app
+    source: java
+    sourcecategory: sourcecode
+    tags:
+      - env:dev
+      - version:1.0.0
+    # Datadog will auto-correlate these logs with APM traces
+    # because dd.trace_id and dd.span_id are embedded in JSON

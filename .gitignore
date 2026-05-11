@@ -1,0 +1,25 @@
+Set-Content -Path D:\banking-app\.gitignore -Value @"
+# Sensitive files - NEVER commit these
+docker-compose.yml
+
+# Build output
+target/
+*.jar
+*.war
+
+# Logs
+logs/
+*.log
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+
+# Environment files
+.env
+.env.*
+
+# Docker
+dd-java-agent.jar
+"@
