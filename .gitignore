@@ -1,6 +1,6 @@
-Set-Content -Path D:\banking-app\.gitignore -Value @"
 # Sensitive files - NEVER commit these
 docker-compose.yml
+bank-application/env
 
 # Build output
 target/
@@ -22,4 +22,11 @@ logs/
 
 # Docker
 dd-java-agent.jar
-"@
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Claude Code internal
+.claude/

@@ -39,35 +39,13 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,prometheus   # Datadog agent scrapes /actuator/prometheus
+        include: health,info,metrics
   endpoint:
     health:
       show-details: always
-  metrics:
-    tags:
-      application: ${spring.application.name}
-      env: ${DD_ENV:dev}
-    export:
-      datadog:
-        enabled: false
-        api-key: "${DD_API_KEY}"   # set via env var
-        application-key: ${DD_APP_KEY:}
-        uri: https://api.datadoghq.com                # change region if needed
-        step: 60s                                      # push interval
-        descriptions: true
-  tracing:
-    sampling:
-      probability: 1.0                                 # 100 % sampling in dev
-
-# ─── Datadog APM agent (set via JVM args in pom.xml / Dockerfile) ─────────────
-# -Ddd.service=banking-app
-# -Ddd.env=dev
-# -Ddd.logs.injection=true     <- injects trace_id/span_id into log records
 
 # ─── Logging ──────────────────────────────────────────────────────────────────
 logging:
   level:
     root: INFO
     com.demo.banking: DEBUG
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
