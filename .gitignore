@@ -1,6 +1,7 @@
 # Sensitive files - NEVER commit these
-docker-compose.yml
 bank-application/env
+bank-application/.env
+healing-agent/.env
 
 # Build output
 target/
@@ -19,6 +20,7 @@ logs/
 # Environment files
 .env
 .env.*
+!.env.example
 
 # Docker
 dd-java-agent.jar

@@ -39,17 +39,15 @@ Return ONLY a valid JSON object — no markdown, no explanation.
   "exception_type": "<specific exception class or null>",
   "severity": "<CRITICAL | HIGH | MEDIUM | LOW>",
   "application_name": "<inferred app name>",
-  "affected_component": "<class or subsystem>",
   "analysis": "<1-2 sentence root-cause>",
   "suggested_action": "<one actionable L1 remediation step>"
 }
 
 Severity guide: CRITICAL=data loss/OOM/DB down, HIGH=payment/auth failure, MEDIUM=latency/retry, LOW=warnings."""
 
-# Known keys returned by the base Gemini prompt — anything else is an extra field
 _KNOWN_ANALYSIS_KEYS = frozenset({
     "exception_type", "severity", "application_name",
-    "affected_component", "analysis", "suggested_action",
+    "analysis", "suggested_action",
 })
 
 
@@ -57,7 +55,6 @@ _KNOWN_ANALYSIS_KEYS = frozenset({
 
 _R    = "\033[0m"
 _BOLD = "\033[1m"
-_WARN = "\033[93m"
 _COLOURS = {"CRITICAL": "\033[91m", "HIGH": "\033[91m", "MEDIUM": "\033[93m", "LOW": "\033[96m"}
 
 
@@ -88,12 +85,11 @@ def analyze_with_gemini(state: LogMonitorState) -> dict:
         return {"analysis": json.loads(raw)}
     except json.JSONDecodeError:
         return {"analysis": {
-            "exception_type":     parsed.get("exception_type"),
-            "severity":           "HIGH" if parsed.get("log_level") == "ERROR" else "MEDIUM",
-            "application_name":   "Banking Core Platform",
-            "affected_component": parsed.get("service"),
-            "analysis":           (parsed.get("message") or "")[:250],
-            "suggested_action":   "Investigate logs manually.",
+            "exception_type":   parsed.get("exception_type"),
+            "severity":         "HIGH" if parsed.get("log_level") == "ERROR" else "MEDIUM",
+            "application_name": "Banking Core Platform",
+            "analysis":         (parsed.get("message") or "")[:250],
+            "suggested_action": "Investigate logs manually.",
         }}
     except Exception as exc:
         logger.error("Gemini error: %s", exc)
@@ -104,7 +100,6 @@ def store_to_db(state: LogMonitorState) -> dict:
     parsed   = state["parsed_entry"] or {}
     analysis = state["analysis"] or {}
 
-    # Convert log timestamp string → MySQL DATETIME string
     log_ts = None
     raw_ts = parsed.get("timestamp")
     if raw_ts:
@@ -114,24 +109,16 @@ def store_to_db(state: LogMonitorState) -> dict:
             pass
 
     record = {
-        "application_name":   analysis.get("application_name") or "Banking Core Platform",
-        "trace_id":           parsed.get("trace_id"),
-        "exception_type":     analysis.get("exception_type") or parsed.get("exception_type"),
-        "service":            parsed.get("service"),
-        "log_level":          parsed.get("log_level"),
-        "severity":           analysis.get("severity"),
-        "message":            parsed.get("message"),
-        "analysis":           analysis.get("analysis"),
-        "suggested_action":   analysis.get("suggested_action"),
-        "affected_component": analysis.get("affected_component"),
-        "thread":             parsed.get("thread"),
-        "log_timestamp":      log_ts,
-        "raw_log":            parsed.get("raw_log"),
-        "missing_fields":     parsed.get("missing_fields"),
+        "application_name": analysis.get("application_name") or "Banking Core Platform",
+        "trace_id":         parsed.get("trace_id"),
+        "exception_type":   analysis.get("exception_type") or parsed.get("exception_type"),
+        "service":          parsed.get("service"),
+        "severity":         analysis.get("severity"),
+        "analysis":         analysis.get("analysis"),
+        "suggested_action": analysis.get("suggested_action"),
+        "log_timestamp":    log_ts,
     }
 
-    # Pass through any extra fields Gemini returned beyond the base prompt keys.
-    # insert_incident() will call ensure_column() for each unknown column.
     for key, val in analysis.items():
         if key not in _KNOWN_ANALYSIS_KEYS:
             record[key] = str(val) if val is not None else None
@@ -152,32 +139,15 @@ def send_alert(state: LogMonitorState) -> dict:
     iid      = state.get("db_incident_id")
     w        = 72
 
-    missing_raw = parsed.get("missing_fields")
-    missing     = json.loads(missing_raw) if missing_raw else []
-
-    trace_display = (
-        parsed.get("trace_id")
-        or f"{_WARN}N/A — not present in log format{_R}"
-    )
-
     print(f"\n{colour}{_BOLD}{'=' * w}{_R}")
     print(f"{colour}{_BOLD}{'  INCIDENT ALERT':^{w}}{_R}")
     print(f"{colour}{_BOLD}{'=' * w}{_R}")
-    print(f"  {_BOLD}Time           :{_R} {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"  {_BOLD}Log Timestamp  :{_R} {parsed.get('timestamp', 'N/A')}")
-    if iid:
-        print(f"  {_BOLD}Incident ID    :{_R} \033[92m#{iid}{_R}")
-    else:
-        print(f"  {_BOLD}Incident ID    :{_R} \033[91mNOT STORED{_R}")
+    print(f"  {_BOLD}Incident ID    :{_R} " + (f"\033[92m#{iid}{_R}" if iid else f"\033[91mNOT STORED{_R}"))
+    print(f"  {_BOLD}Time           :{_R} {parsed.get('timestamp', 'N/A')}")
     print(f"  {_BOLD}Severity       :{_R} {colour}{severity}{_R}")
     print(f"  {_BOLD}Service        :{_R} {parsed.get('service', 'unknown')}")
-    print(f"  {_BOLD}Level          :{_R} {parsed.get('log_level', 'unknown')}")
-    print(f"  {_BOLD}Thread         :{_R} {parsed.get('thread', 'N/A')}")
-    print(f"  {_BOLD}Trace ID       :{_R} {trace_display}")
-    print(f"  {_BOLD}Component      :{_R} {analysis.get('affected_component', 'N/A')}")
     print(f"  {_BOLD}Exception      :{_R} {analysis.get('exception_type') or 'N/A'}")
-    if missing:
-        print(f"  {_BOLD}Missing Fields :{_R} {_WARN}{', '.join(missing)}{_R}  ← stored as NULL in DB")
+    print(f"  {_BOLD}Trace ID       :{_R} {parsed.get('trace_id') or 'N/A'}")
     print(f"\n  {_BOLD}Analysis:{_R}")
     print(f"    {analysis.get('analysis', 'N/A')}")
     print(f"\n  {_BOLD}Action:{_R}")
