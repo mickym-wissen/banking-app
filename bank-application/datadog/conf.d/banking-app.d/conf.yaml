@@ -1,0 +1,12 @@
+logs:
+  - type: file
+    path: /logs/banking-app-json.log
+    service: banking-app
+    source: java
+    sourcecategory: sourcecode
+    tags:
+      - env:dev
+    log_processing_rules:
+      - type: multi_line
+        name: new_log_start
+        pattern: '^\{'

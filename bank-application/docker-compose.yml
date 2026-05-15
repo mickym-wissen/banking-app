@@ -10,8 +10,44 @@ services:
       - "8080:8080"
     volumes:
       - ./logs:/app/logs
+    # Allows the container to reach the host machine's MySQL (healing-agent DB)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      # Healing-agent MySQL credentials — used by entrypoint.sh to clear log_incidents
+      - HEALING_DB_HOST=host.docker.internal
+      - HEALING_DB_PORT=3306
+      - HEALING_DB_NAME=healing_agent_db
+      - HEALING_DB_USER=root
+      - HEALING_DB_PASSWORD=varun
     networks:
       - banking-net
+
+  # ── Datadog Agent ──────────────────────────────────────────────────────────
+  datadog-agent:
+    image: gcr.io/datadoghq/agent:7
+    container_name: datadog-agent
+    env_file:
+      - env
+    environment:
+      - DD_SITE=us5.datadoghq.com
+      - DD_LOGS_ENABLED=true
+      - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=false
+      - DD_CONTAINER_EXCLUDE=name:datadog-agent
+      # Reduce log shipping latency: flush batch every 1s (default is 5s)
+      - DD_LOGS_CONFIG_BATCH_WAIT=1
+      # Use HTTP transport — lower latency than TCP for log forwarding
+      - DD_LOGS_CONFIG_USE_HTTP=true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+      - ./logs:/logs:ro
+      - ./datadog/conf.d:/conf.d:ro
+    networks:
+      - banking-net
+    depends_on:
+      - banking-app
 
 networks:
   banking-net:

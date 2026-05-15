@@ -10,10 +10,17 @@ RUN mvn package -DskipTests -q
 FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
 
+# Install mysql client so entrypoint.sh can truncate log_incidents on startup
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends default-mysql-client \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY --from=build /app/target/banking-app-1.0.0.jar banking-app.jar
+COPY entrypoint.sh entrypoint.sh
+RUN chmod +x entrypoint.sh
 
 RUN mkdir -p /app/logs
 
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-jar", "/app/banking-app.jar"]
+ENTRYPOINT ["/app/entrypoint.sh"]

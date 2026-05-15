@@ -1,0 +1,64 @@
+ # ── Setup ──────────────────────────────────────────────────────────────────────
+  $base    = "http://localhost:8080/api/v1/accounts"
+  $headers = @{ "Content-Type" = "application/json" }
+
+
+  # ══════════════════════════════════════════════════════════════════════════════
+  # WARN — Validation Failed  (missing required fields)
+  # ══════════════════════════════════════════════════════════════════════════════
+  try { Invoke-RestMethod -Uri $base -Method POST -Headers $headers -Body '{}' } catch {}
+
+  try { Invoke-RestMethod -Uri $base -Method POST -Headers $headers `
+        -Body '{"ownerName":""}' } catch {}
+
+
+  # ══════════════════════════════════════════════════════════════════════════════
+  # WARN — Account Not Found
+  # ══════════════════════════════════════════════════════════════════════════════
+  try { Invoke-RestMethod -Uri "$base/9999"             -Method GET }    catch {}
+  try { Invoke-RestMethod -Uri "$base/number/INVALID-ACC" -Method GET }  catch {}
+  try { Invoke-RestMethod -Uri "$base/9999"             -Method DELETE }  catch {}
+
+
+  # ══════════════════════════════════════════════════════════════════════════════
+  # WARN — Insufficient Funds  (create account with $50, then try withdraw $5000)
+  # ══════════════════════════════════════════════════════════════════════════════
+  $poor = Invoke-RestMethod -Uri $base -Method POST -Headers $headers `
+          -Body '{"ownerName":"BrokeUser","accountType":"SAVINGS","initialBalance":50}'
+
+  try { Invoke-RestMethod -Uri "$base/$($poor.id)/withdraw" -Method POST -Headers $headers `
+        -Body '{"amount":5000}' } catch {}
+
+  try { Invoke-RestMethod -Uri "$base/$($poor.id)/transfer" -Method POST -Headers $headers `
+        -Body "{`"toAccountId`":9999,`"amount`":5000}" } catch {}
+
+
+  # ══════════════════════════════════════════════════════════════════════════════
+  # ERROR — Illegal State  (deactivate account then try to transact on it)
+  # ══════════════════════════════════════════════════════════════════════════════
+  $acc = Invoke-RestMethod -Uri $base -Method POST -Headers $headers `
+         -Body '{"ownerName":"DeactivatedUser","accountType":"CHECKING","initialBalance":500}'
+
+  # Deactivate it
+  Invoke-RestMethod -Uri "$base/$($acc.id)" -Method PUT -Headers $headers `
+                    -Body '{"status":"INACTIVE"}' | Out-Null
+
+  # Now try deposit, withdraw and transfer — all throw IllegalStateException → ERROR log
+  try { Invoke-RestMethod -Uri "$base/$($acc.id)/deposit"  -Method POST -Headers $headers `
+        -Body '{"amount":100}' } catch {}
+
+  try { Invoke-RestMethod -Uri "$base/$($acc.id)/withdraw" -Method POST -Headers $headers `
+        -Body '{"amount":100}' } catch {}
+
+  $active = Invoke-RestMethod -Uri $base -Method POST -Headers $headers `
+            -Body '{"ownerName":"ActiveUser","accountType":"SAVINGS","initialBalance":200}'
+
+  try { Invoke-RestMethod -Uri "$base/$($acc.id)/transfer" -Method POST -Headers $headers `
+        -Body "{`"toAccountId`":$($active.id),`"amount`":100}" } catch {}
+
+
+  # ══════════════════════════════════════════════════════════════════════════════
+  # ERROR — Unexpected / Generic  (malformed JSON → triggers handleGeneric)
+  # ══════════════════════════════════════════════════════════════════════════════
+  try { Invoke-RestMethod -Uri $base -Method POST -Headers $headers `
+        -Body 'NOT_JSON_AT_ALL' } catch {}

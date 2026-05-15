@@ -1,7 +1,5 @@
 import logging
-import re
-import time
-from typing import List
+from typing import Union
 
 from langgraph.graph import END, START, StateGraph
 
@@ -14,23 +12,27 @@ from agents.log_monitor.nodes import (
     send_alert,
     store_to_db,
 )
-from config.settings import settings
 
 logger = logging.getLogger(__name__)
-_LOG_START = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}")
 
 
 @AgentRegistry.register
 class LogMonitorAgent(BaseAgent):
-    """Tails the banking log file and processes WARN/ERROR entries through Gemini → MySQL."""
+    """
+    Processes WARN/ERROR log entries through Gemini → MySQL.
+    Supports two log sources:
+      - LocalFileSource  : tails a local log file
+      - DatadogSource    : polls the Datadog Logs v2 API
+    The source is chosen via LOG_SOURCE in .env ("local" | "datadog"),
+    or injected directly via the constructor.
+    """
 
     name = "log_monitor"
     description = "Monitors application logs and stores WARNING/ERROR incidents to MySQL."
 
-    def __init__(self) -> None:
-        self._graph = self.build_graph()
-        self._position: int = 0
-        self._pending: List[str] = []
+    def __init__(self, source=None) -> None:
+        self._graph  = self.build_graph()
+        self._source = source  # injected or resolved in run()
 
     def build_graph(self):
         g = StateGraph(LogMonitorState)
@@ -45,48 +47,33 @@ class LogMonitorAgent(BaseAgent):
         g.add_edge("alert",   END)
         return g.compile()
 
-    def _read_new_entries(self) -> List[str]:
-        try:
-            with open(settings.LOG_FILE_PATH, "r", encoding="utf-8") as f:
-                f.seek(self._position)
-                new_content = f.read()
-                self._position = f.tell()
-        except FileNotFoundError:
-            return []
-
-        if not new_content:
-            if self._pending:
-                entry = "\n".join(self._pending)
-                self._pending = []
-                return [entry]
-            return []
-
-        complete, current = [], []
-        for line in (self._pending + new_content.splitlines()):
-            if _LOG_START.match(line):
-                if current:
-                    complete.append("\n".join(current))
-                current = [line]
-            elif current:
-                current.append(line)
-
-        self._pending = current  # last entry may still be growing
-        return complete
+    def _resolve_source(self):
+        """Pick the right source based on settings if not already set."""
+        from config.settings import settings
+        if settings.LOG_SOURCE == "datadog":
+            from agents.log_monitor.sources.datadog import DatadogSource
+            return DatadogSource()
+        from agents.log_monitor.sources.local import LocalFileSource
+        return LocalFileSource()
 
     def run(self) -> None:
-        print(f"\n\033[96m[LogMonitorAgent]\033[0m Watching \033[93m{settings.LOG_FILE_PATH}\033[0m "
-              f"— every {settings.LOG_CHECK_INTERVAL}s (scanning from beginning)\n", flush=True)
-        while True:
+        source = self._source or self._resolve_source()
+        src_name = type(source).__name__
+
+        print(
+            f"\n\033[96m[LogMonitorAgent]\033[0m Source: \033[93m{src_name}\033[0m\n",
+            flush=True,
+        )
+
+        for entry in source.stream():
             try:
-                for entry in self._read_new_entries():
-                    self._graph.invoke({
-                        "raw_log_entry":  entry,
-                        "parsed_entry":   None,
-                        "analysis":       None,
-                        "db_incident_id": None,
-                        "should_skip":    False,
-                        "error":          None,
-                    })
+                self._graph.invoke({
+                    "raw_log_entry":  entry,
+                    "parsed_entry":   None,
+                    "analysis":       None,
+                    "db_incident_id": None,
+                    "should_skip":    False,
+                    "error":          None,
+                })
             except Exception as exc:
-                logger.error("Monitor loop error: %s", exc, exc_info=True)
-            time.sleep(settings.LOG_CHECK_INTERVAL)
+                logger.error("Graph invoke error: %s", exc, exc_info=True)

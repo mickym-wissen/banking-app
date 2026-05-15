@@ -93,6 +93,35 @@ def initialize_database() -> None:
         ensure_column(col_name, col_type)
 
 
+def fetch_all_incidents() -> list[dict]:
+    """Return all stored incidents ordered newest-first."""
+    conn = _get_conn()
+    try:
+        cur = conn.cursor(dictionary=True)
+        cur.execute("""
+            SELECT id, application_name, trace_id, exception_type,
+                   service, severity, analysis, suggested_action,
+                   log_timestamp, created_at
+            FROM log_incidents
+            ORDER BY created_at DESC
+        """)
+        rows = cur.fetchall()
+        cur.close()
+        # Convert datetime objects to ISO strings for JSON serialisation
+        result = []
+        for row in rows:
+            r = {}
+            for k, v in row.items():
+                r[k] = v.isoformat() if hasattr(v, "isoformat") else v
+            result.append(r)
+        return result
+    except Exception as exc:
+        logger.error("fetch_all_incidents failed: %s", exc)
+        return []
+    finally:
+        conn.close()
+
+
 def insert_incident(data: dict) -> int:
     defaults = {
         "application_name": "Banking Core Platform",

@@ -63,6 +63,13 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- JSON log encoder — used by the Datadog file appender -->
+        <dependency>
+            <groupId>net.logstash.logback</groupId>
+            <artifactId>logstash-logback-encoder</artifactId>
+            <version>7.4</version>
+        </dependency>
+
         <!-- Test -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

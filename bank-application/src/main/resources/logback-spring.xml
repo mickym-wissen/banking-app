@@ -18,9 +18,23 @@
         </encoder>
     </appender>
 
+    <!-- Datadog: JSON file — level maps directly to status, immediateFlush removes OS buffering -->
+    <appender name="DATADOG_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/banking-app-json.log</file>
+        <immediateFlush>true</immediateFlush>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/banking-app-json.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>7</maxHistory>
+        </rollingPolicy>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <customFields>{"service":"banking-app","ddsource":"java"}</customFields>
+        </encoder>
+    </appender>
+
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>
         <appender-ref ref="FILE"/>
+        <appender-ref ref="DATADOG_FILE"/>
     </root>
 
     <logger name="com.demo.banking" level="DEBUG"/>

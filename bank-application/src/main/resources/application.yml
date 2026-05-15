@@ -14,25 +14,14 @@ spring:
       enabled: true          # http://localhost:8080/h2-console
       path: /h2-console
   jpa:
+    open-in-view: false      # prevents DB queries during view rendering
     hibernate:
       ddl-auto: create-drop
     show-sql: true
     properties:
       hibernate:
         format_sql: true
-        dialect: org.hibernate.dialect.H2Dialect
-
-#PostgreSql Connection
-#spring:
-#  datasource:
-#    url: jdbc:postgresql://<rds-endpoint>:5432/bankingdb
-#    username: postgres
-#    password: your-password
-#    driver-class-name: org.postgresql.Driver
-#  jpa:
-#    properties:
-#      hibernate:
-#        dialect: org.hibernate.dialect.PostgreSQLDialect
+        # dialect removed — Hibernate auto-detects H2
 
 # ─── Actuator ────────────────────────────────────────────────────────────────
 management:
