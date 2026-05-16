@@ -43,6 +43,23 @@ CREATE TABLE IF NOT EXISTS log_incidents (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 """
 
+_RCA_SCHEMA = """
+CREATE TABLE IF NOT EXISTS rca_jobs (
+    id            INT AUTO_INCREMENT PRIMARY KEY,
+    incident_id   INT,
+    repo_url      VARCHAR(500),
+    status        VARCHAR(20)  NOT NULL DEFAULT 'running',
+    result_type   VARCHAR(20),
+    pr_url        VARCHAR(500),
+    pr_number     INT,
+    fix_file      VARCHAR(300),
+    fix_desc      TEXT,
+    rca_report    TEXT,
+    error         TEXT,
+    created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+"""
+
 _BASE_COLUMNS = frozenset({
     "application_name", "trace_id", "exception_type", "status",
     "service", "severity", "analysis", "suggested_action", "log_timestamp",
@@ -80,9 +97,10 @@ def initialize_database() -> None:
     try:
         cur = conn.cursor()
         cur.execute(_SCHEMA)
+        cur.execute(_RCA_SCHEMA)
         conn.commit()
         cur.close()
-        logger.info("Table log_incidents ready.")
+        logger.info("Tables log_incidents and rca_jobs ready.")
     except Exception:
         conn.rollback()
         raise
@@ -117,6 +135,77 @@ def fetch_all_incidents() -> list[dict]:
         return result
     except Exception as exc:
         logger.error("fetch_all_incidents failed: %s", exc)
+        return []
+    finally:
+        conn.close()
+
+
+def insert_rca_job(incident_id: int | None, repo_url: str) -> int:
+    """Create a new rca_jobs row with status='running' and return its id."""
+    conn = _get_conn()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO rca_jobs (incident_id, repo_url) VALUES (%s, %s)",
+            (incident_id, repo_url),
+        )
+        job_id = cur.lastrowid
+        conn.commit()
+        cur.close()
+        return job_id
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def update_rca_job(job_id: int, **kwargs) -> None:
+    """Update arbitrary columns on an rca_jobs row."""
+    if not kwargs:
+        return
+    allowed = {"status", "result_type", "pr_url", "pr_number", "fix_file", "fix_desc", "rca_report", "error"}
+    filtered = {k: v for k, v in kwargs.items() if k in allowed}
+    if not filtered:
+        return
+    set_clause = ", ".join(f"`{k}` = %s" for k in filtered)
+    conn = _get_conn()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            f"UPDATE rca_jobs SET {set_clause} WHERE id = %s",
+            [*filtered.values(), job_id],
+        )
+        conn.commit()
+        cur.close()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def fetch_rca_jobs() -> list[dict]:
+    """Return all rca_jobs ordered newest-first."""
+    conn = _get_conn()
+    try:
+        cur = conn.cursor(dictionary=True)
+        cur.execute(
+            "SELECT id, incident_id, repo_url, status, result_type, "
+            "pr_url, pr_number, fix_file, fix_desc, rca_report, error, created_at "
+            "FROM rca_jobs ORDER BY created_at DESC"
+        )
+        rows = cur.fetchall()
+        cur.close()
+        result = []
+        for row in rows:
+            r = {}
+            for k, v in row.items():
+                r[k] = v.isoformat() if hasattr(v, "isoformat") else v
+            result.append(r)
+        return result
+    except Exception as exc:
+        logger.error("fetch_rca_jobs failed: %s", exc)
         return []
     finally:
         conn.close()

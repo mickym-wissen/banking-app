@@ -5,8 +5,11 @@ load_dotenv()
 
 
 class Settings:
-    # Gemini
+    # Gemini (used by log-monitor pipeline)
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+
+    # Groq (used by the GitHub RCA agent — llama-3.3-70b-versatile)
+    GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
 
     # MySQL
     DB_HOST: str     = os.getenv("DB_HOST", "localhost")
@@ -25,6 +28,9 @@ class Settings:
     DD_APP_KEY: str  = os.getenv("DD_APP_KEY", "")
     DD_SITE: str     = os.getenv("DD_SITE", "us5.datadoghq.com")
     DD_QUERY: str    = os.getenv("DD_QUERY", "service:banking-app")
+
+    # GitHub integration (used by the RCA agent to clone repos and raise PRs)
+    GITHUB_TOKEN: str = os.getenv("GITHUB_TOKEN", "")
 
     # Application
     APP_ENV: str       = os.getenv("APP_ENV", "development")

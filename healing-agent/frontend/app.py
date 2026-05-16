@@ -10,7 +10,9 @@ import threading
 import queue
 import json
 import time
+import uuid
 from typing import Optional
+from datetime import datetime
 
 # ── Path setup ────────────────────────────────────────────────────────────────
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -78,6 +80,40 @@ _stop_event = threading.Event()
 _stats = {"total_logs": 0, "incidents": 0, "critical": 0, "high": 0, "medium": 0}
 _stats_lock = threading.Lock()
 
+# ── RCA job state ──────────────────────────────────────────────────────────────
+# Keyed by short job_id string. Jobs are also persisted to MySQL via rca_jobs table.
+
+_rca_jobs: dict[str, dict] = {}
+_rca_queues: dict[str, queue.Queue] = {}
+_rca_lock = threading.Lock()
+
+# ── Token usage tracking ───────────────────────────────────────────────────────
+
+_token_log: list[dict] = []
+_token_totals: dict = {
+    "gemini_calls": 0, "gemini_input": 0, "gemini_output": 0,
+    "groq_calls":   0, "groq_input":   0, "groq_output":   0,
+}
+_token_lock = threading.Lock()
+
+
+def _record_tokens(family: str, model: str, input_tok: int, output_tok: int, ctx: str = "") -> None:
+    with _token_lock:
+        _token_log.append({
+            "ts":      datetime.now().strftime("%H:%M:%S"),
+            "family":  family,
+            "model":   model,
+            "input":   input_tok,
+            "output":  output_tok,
+            "total":   input_tok + output_tok,
+            "context": ctx,
+        })
+        _token_totals[f"{family}_calls"]  += 1
+        _token_totals[f"{family}_input"]  += input_tok
+        _token_totals[f"{family}_output"] += output_tok
+        if len(_token_log) > 500:
+            _token_log.pop(0)
+
 
 # ── Log entry processing ───────────────────────────────────────────────────────
 
@@ -130,6 +166,12 @@ def _analyze_and_store(raw: str, parsed: dict) -> None:
 
         analysis = state.get("analysis") or {}
         severity = (analysis.get("severity") or "HIGH").upper()
+
+        # Estimate token usage for Gemini incident analysis
+        est_in  = max(600, len(raw) // 4 + 500)
+        est_out = 450
+        _record_tokens("gemini", "gemini-2.5-flash", est_in, est_out,
+                       f"incident #{state.get('db_incident_id')}")
 
         with _stats_lock:
             _stats["incidents"] += 1
@@ -321,6 +363,247 @@ def stream_incidents():
         mimetype="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+# ── RCA routes ────────────────────────────────────────────────────────────────
+
+@app.route("/api/rca/start", methods=["POST"])
+def rca_start():
+    """Start a GitHub RCA analysis job. Returns {job_id}."""
+    data = request.get_json(force=True) or {}
+    repo_url = (data.get("repo_url") or "").strip()
+    incident = data.get("incident") or {}
+
+    if not repo_url:
+        return jsonify({"error": "repo_url is required"}), 400
+
+    job_id = uuid.uuid4().hex[:10]
+    db_job_id = None
+
+    try:
+        from db.database import insert_rca_job
+        db_job_id = insert_rca_job(incident.get("id"), repo_url)
+    except Exception as exc:
+        log.warning("Could not persist rca_job to DB: %s", exc)
+
+    with _rca_lock:
+        _rca_jobs[job_id] = {
+            "id":         job_id,
+            "db_id":      db_job_id,
+            "status":     "running",
+            "incident":   incident,
+            "repo_url":   repo_url,
+            "steps":      [],
+            "result":     None,
+            "created_at": datetime.now().isoformat(),
+        }
+        _rca_queues[job_id] = queue.Queue(maxsize=300)
+
+    t = threading.Thread(target=_run_rca_job, args=(job_id,), daemon=True)
+    t.start()
+
+    return jsonify({"job_id": job_id, "db_id": db_job_id})
+
+
+def _run_rca_job(job_id: str) -> None:
+    with _rca_lock:
+        job = _rca_jobs.get(job_id)
+    if not job:
+        return
+
+    incident = job["incident"]
+    repo_url = job["repo_url"]
+    db_id    = job.get("db_id")
+
+    def progress(step: str, message: str) -> None:
+        event = {"type": "progress", "step": step, "message": message}
+        with _rca_lock:
+            if job_id in _rca_jobs:
+                _rca_jobs[job_id]["steps"].append({"step": step, "message": message})
+            q = _rca_queues.get(job_id)
+        if q:
+            try:
+                q.put_nowait(event)
+            except queue.Full:
+                pass
+
+    try:
+        from config.settings import settings
+
+        if settings.GROQ_API_KEY:
+            # Preferred: LangGraph tool-calling agent with Groq llama-3.3-70b-versatile
+            from agents.rca.rca_agent import RCAAgent
+            agent = RCAAgent(
+                groq_api_key=settings.GROQ_API_KEY,
+                github_token=settings.GITHUB_TOKEN,
+            )
+        else:
+            # Fallback: one-shot Gemini agent
+            log.warning("GROQ_API_KEY not set — falling back to Gemini RCA agent")
+            from agents.rca.github_rca import GitHubRCAAgent
+            agent = GitHubRCAAgent(
+                github_token=settings.GITHUB_TOKEN,
+                gemini_api_key=settings.GEMINI_API_KEY,
+            )
+
+        result = agent.analyze(repo_url, incident, progress)
+
+        # Estimate token usage for RCA session (repo analysis is input-heavy)
+        if settings.GROQ_API_KEY:
+            _record_tokens("groq", "llama-3.3-70b-versatile", 9500, 2200, f"rca job {job_id}")
+        else:
+            _record_tokens("gemini", "gemini-2.5-flash", 12000, 3000, f"rca job {job_id}")
+
+        with _rca_lock:
+            if job_id in _rca_jobs:
+                _rca_jobs[job_id].update({"status": "done", "result": result})
+            q = _rca_queues.get(job_id)
+        if q:
+            try:
+                q.put_nowait({"type": "done", **result})
+            except queue.Full:
+                pass
+
+        if db_id:
+            try:
+                from db.database import update_rca_job
+                update_rca_job(
+                    db_id,
+                    status="done",
+                    result_type=result.get("status"),
+                    pr_url=result.get("pr_url"),
+                    pr_number=result.get("pr_number"),
+                    fix_file=result.get("fix_file"),
+                    fix_desc=result.get("fix_desc"),
+                    rca_report=result.get("rca_report"),
+                )
+            except Exception as exc:
+                log.warning("Could not update rca_job in DB: %s", exc)
+
+    except Exception as exc:
+        err = str(exc)
+        log.error("RCA job %s failed: %s", job_id, exc, exc_info=True)
+        with _rca_lock:
+            if job_id in _rca_jobs:
+                _rca_jobs[job_id].update({"status": "failed", "result": {"error": err}})
+            q = _rca_queues.get(job_id)
+        if q:
+            try:
+                q.put_nowait({"type": "error", "message": err})
+            except queue.Full:
+                pass
+
+        if db_id:
+            try:
+                from db.database import update_rca_job
+                update_rca_job(db_id, status="failed", error=err)
+            except Exception:
+                pass
+
+
+@app.route("/api/rca/stream/<job_id>")
+def rca_stream(job_id: str):
+    """SSE stream for a specific RCA job — emits progress and final result."""
+    with _rca_lock:
+        job = _rca_jobs.get(job_id)
+        q   = _rca_queues.get(job_id)
+
+    if not job:
+        return jsonify({"error": "Job not found"}), 404
+
+    def generate():
+        try:
+            # Replay steps accumulated before the client connected
+            for step in list(job.get("steps", [])):
+                yield f"data: {json.dumps({'type': 'progress', **step})}\n\n"
+
+            # If already finished, send final event and close
+            if job["status"] in ("done", "failed"):
+                result = job.get("result") or {}
+                etype = "done" if job["status"] == "done" else "error"
+                if etype == "error":
+                    yield f"data: {json.dumps({'type': 'error', 'message': result.get('error', 'Unknown error')})}\n\n"
+                else:
+                    yield f"data: {json.dumps({'type': 'done', **result})}\n\n"
+                return
+
+            # Stream live events
+            while q:
+                try:
+                    item = q.get(timeout=30)
+                    yield f"data: {json.dumps(item)}\n\n"
+                    if item.get("type") in ("done", "error"):
+                        break
+                except queue.Empty:
+                    yield ": heartbeat\n\n"
+        except GeneratorExit:
+            pass
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@app.route("/api/rca/jobs")
+def rca_jobs_list():
+    """Return summary of all in-memory RCA jobs (newest first)."""
+    with _rca_lock:
+        jobs = list(_rca_jobs.values())
+    jobs.sort(key=lambda j: j["created_at"], reverse=True)
+    return jsonify([
+        {
+            "id":             j["id"],
+            "status":         j["status"],
+            "repo_url":       j["repo_url"],
+            "incident_id":    j.get("incident", {}).get("id"),
+            "exception_type": j.get("incident", {}).get("exception_type"),
+            "result_type":    (j.get("result") or {}).get("status"),
+            "pr_url":         (j.get("result") or {}).get("pr_url"),
+            "pr_number":      (j.get("result") or {}).get("pr_number"),
+            "created_at":     j["created_at"],
+        }
+        for j in jobs
+    ])
+
+
+@app.route("/api/rca/jobs/<job_id>")
+def rca_job_detail(job_id: str):
+    """Return full detail for one RCA job."""
+    with _rca_lock:
+        job = _rca_jobs.get(job_id)
+    if not job:
+        return jsonify({"error": "Job not found"}), 404
+    return jsonify(job)
+
+
+@app.route("/api/token-usage")
+def token_usage_route():
+    with _token_lock:
+        totals = dict(_token_totals)
+        recent = list(_token_log[-100:])
+    # Gemini 2.5 Flash pricing: $0.075/1M input, $0.30/1M output (non-thinking)
+    gem_cost = (totals["gemini_input"] * 0.075 + totals["gemini_output"] * 0.30) / 1_000_000
+    return jsonify({
+        "totals":       totals,
+        "gemini_cost":  round(gem_cost, 6),
+        "groq_cost":    0.0,
+        "total_calls":  totals["gemini_calls"] + totals["groq_calls"],
+        "total_tokens": (totals["gemini_input"] + totals["gemini_output"]
+                         + totals["groq_input"] + totals["groq_output"]),
+        "log":          recent,
+    })
+
+
+@app.route("/api/github/token-status")
+def github_token_status():
+    from config.settings import settings
+    return jsonify({
+        "github_configured": bool(settings.GITHUB_TOKEN),
+        "groq_configured":   bool(settings.GROQ_API_KEY),
+        "rca_engine":        "groq-llama-3.3-70b" if settings.GROQ_API_KEY else "gemini-2.5-flash",
+    })
 
 
 # ── Startup ────────────────────────────────────────────────────────────────────
