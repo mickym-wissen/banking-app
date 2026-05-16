@@ -15,7 +15,7 @@ public class AccountDto {
     @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
     public static class CreateRequest {
         @NotBlank(message = "Owner name is required")
-        private String ownerName;
+        private String ownerName = "";
 
         @NotNull(message = "Account type is required")
         private Account.AccountType accountType;
