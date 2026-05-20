@@ -7,7 +7,7 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 from config.settings import settings
-from db.database import initialize_database
+from db.database import initialize_database, clear_startup_tables
 from agents.log_monitor.agent import LogMonitorAgent  # registers itself
 from agents.core import AgentRegistry
 
@@ -33,6 +33,8 @@ def main() -> None:
 
     logger.info("Initialising database ...")
     initialize_database()
+    logger.info("Clearing transient tables for fresh start ...")
+    clear_startup_tables()
     logger.info("Database ready. Registered agents: %s", AgentRegistry.list())
 
     try:

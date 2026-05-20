@@ -3,8 +3,7 @@ import logging
 from datetime import datetime
 from typing import Optional, TypedDict
 
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.messages import HumanMessage, SystemMessage
+import anthropic
 
 from config.settings import settings
 from db.database import insert_incident
@@ -23,14 +22,9 @@ class LogMonitorState(TypedDict):
     error:          Optional[str]
 
 
-# ── LLM ───────────────────────────────────────────────────────────────────────
+# ── LLM (Anthropic Claude) ────────────────────────────────────────────────────
 
-_llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash",
-    google_api_key=settings.GEMINI_API_KEY,
-    temperature=0,
-    max_output_tokens=1024,
-)
+_client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
 
 _SYSTEM_PROMPT = """You are a senior SRE analyzing banking microservice log entries.
 Return ONLY a valid JSON object — no markdown, no explanation.
@@ -68,18 +62,21 @@ def route_after_parse(state: LogMonitorState) -> str:
     return "continue" if state["parsed_entry"] and is_actionable(state["parsed_entry"]) else "skip"
 
 
-def analyze_with_gemini(state: LogMonitorState) -> dict:
+def analyze_with_claude(state: LogMonitorState) -> dict:
     parsed = state["parsed_entry"]
-    messages = [
-        SystemMessage(content=_SYSTEM_PROMPT),
-        HumanMessage(content=(
-            f"Log entry:\n```\n{state['raw_log_entry']}\n```\n"
-            f"Service: {parsed.get('service')} | Level: {parsed.get('log_level')} | "
-            f"Message: {parsed.get('message')} | Exception hint: {parsed.get('exception_type')}"
-        )),
-    ]
+    user_prompt = (
+        f"Log entry:\n```\n{state['raw_log_entry']}\n```\n"
+        f"Service: {parsed.get('service')} | Level: {parsed.get('log_level')} | "
+        f"Message: {parsed.get('message')} | Exception hint: {parsed.get('exception_type')}"
+    )
     try:
-        raw = _llm.invoke(messages).content.strip()
+        response = _client.messages.create(
+            model=settings.CLAUDE_MODEL,
+            max_tokens=1024,
+            system=_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": user_prompt}],
+        )
+        raw = response.content[0].text.strip()
         if raw.startswith("```"):
             raw = raw.split("```")[1].lstrip("json").strip()
         return {"analysis": json.loads(raw)}
@@ -92,7 +89,7 @@ def analyze_with_gemini(state: LogMonitorState) -> dict:
             "suggested_action": "Investigate logs manually.",
         }}
     except Exception as exc:
-        logger.error("Gemini error: %s", exc)
+        logger.error("Claude analysis error: %s", exc)
         return {"error": str(exc), "analysis": None}
 
 
@@ -117,6 +114,8 @@ def store_to_db(state: LogMonitorState) -> dict:
         "analysis":         analysis.get("analysis"),
         "suggested_action": analysis.get("suggested_action"),
         "log_timestamp":    log_ts,
+        "raw_log":          (state.get("raw_log_entry") or "")[:10000],
+        "rca_status":       "pending",
     }
 
     for key, val in analysis.items():

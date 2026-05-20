@@ -5,562 +5,397 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Self-Healing Agent Dashboard</title>
   <style>
-    /* ── Reset & variables ────────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:          #0d1117;
-      --surface:     #161b22;
-      --surface2:    #1c2333;
-      --border:      #30363d;
-      --border2:     #21262d;
-      --text:        #e6edf3;
-      --muted:       #8b949e;
-      --accent:      #58a6ff;
-      --accent-glow: rgba(88,166,255,.15);
-      --green:       #3fb950;
-      --yellow:      #e3b341;
-      --red:         #f85149;
-      --orange:      #fb8f44;
-      --purple:      #d2a8ff;
-      --gray:        #6e7681;
-
-      --lvl-info:  #58a6ff;
-      --lvl-warn:  #e3b341;
-      --lvl-error: #f85149;
-      --lvl-debug: #6e7681;
-      --lvl-fatal: #d2a8ff;
-
+      --bg:       #0d1117;
+      --surface:  #161b22;
+      --surface2: #1c2333;
+      --surface3: #21262d;
+      --border:   #30363d;
+      --border2:  #21262d;
+      --text:     #e6edf3;
+      --muted:    #8b949e;
+      --accent:   #58a6ff;
+      --green:    #3fb950;
+      --yellow:   #e3b341;
+      --red:      #f85149;
+      --orange:   #fb8f44;
+      --purple:   #d2a8ff;
+      --gray:     #6e7681;
       --sev-critical: #f85149;
       --sev-high:     #fb8f44;
       --sev-medium:   #e3b341;
       --sev-low:      #3fb950;
-
       --radius: 8px;
-      --font-mono: "Cascadia Code", "Fira Code", "Consolas", "Courier New", monospace;
-      --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: "Cascadia Code","Fira Code","Consolas","Courier New",monospace;
+      --font-ui: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
     }
 
-    html, body {
-      height: 100%;
-      background: var(--bg);
-      color: var(--text);
-      font-family: var(--font-ui);
-      font-size: 13px;
-      overflow: hidden;
-    }
+    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font-ui); font-size: 13px; overflow: hidden; }
+    #app { display: flex; flex-direction: column; height: 100vh; }
 
-    /* ── Layout skeleton ─────────────────────────────────────────────── */
-    #app {
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-    }
-
-    /* ── Header ──────────────────────────────────────────────────────── */
+    /* ── Header ── */
     #header {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 0 20px;
-      height: 52px;
-      background: var(--surface);
+      display: flex; align-items: center; gap: 12px;
+      padding: 0 20px; height: 54px;
+      background: linear-gradient(180deg,#1a2332 0%,var(--surface) 100%);
       border-bottom: 1px solid var(--border);
+      box-shadow: 0 2px 12px rgba(0,0,0,.4);
       flex-shrink: 0;
     }
-    #header .logo {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 15px;
-      font-weight: 600;
-      color: var(--text);
+    .logo { display: flex; align-items: center; gap: 10px; }
+    .logo-icon {
+      width: 34px; height: 34px; border-radius: 8px;
+      background: linear-gradient(135deg,#1f6feb,#388bfd);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 17px; box-shadow: 0 2px 10px rgba(88,166,255,.3); flex-shrink: 0;
     }
-    #header .logo .icon {
-      font-size: 20px;
-    }
-    #header .spacer { flex: 1; }
+    .logo-text { display: flex; flex-direction: column; line-height: 1.2; }
+    .logo-title { font-size: 14px; font-weight: 700; letter-spacing: -.2px; }
+    .logo-sub   { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+    .hdr-div    { width: 1px; height: 26px; background: var(--border); margin: 0 4px; }
+    .hdr-space  { flex: 1; }
+
     #status-badge {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: .4px;
-      text-transform: uppercase;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      color: var(--muted);
+      display: flex; align-items: center; gap: 6px;
+      padding: 5px 14px; border-radius: 20px; font-size: 11px;
+      font-weight: 700; letter-spacing: .5px; text-transform: uppercase;
+      background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
       transition: all .3s;
     }
     #status-badge.running {
-      background: rgba(63,185,80,.12);
-      border-color: var(--green);
-      color: var(--green);
+      background: rgba(63,185,80,.1); border-color: rgba(63,185,80,.5);
+      color: var(--green); box-shadow: 0 0 12px rgba(63,185,80,.12);
     }
-    #status-badge .dot {
-      width: 7px; height: 7px;
-      border-radius: 50%;
-      background: currentColor;
-    }
-    #status-badge.running .dot {
-      animation: pulse 1.4s ease-in-out infinite;
-    }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: .3; }
-    }
+    #status-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    #status-badge.running .dot { animation: pdot 1.4s ease-in-out infinite; }
+    @keyframes pdot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.35;transform:scale(.7)} }
 
-    /* ── Config bar ──────────────────────────────────────────────────── */
-    #config-bar {
-      padding: 12px 20px;
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      flex-shrink: 0;
-    }
-    .config-row {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-    .label {
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: .5px;
-      color: var(--muted);
-    }
+    /* ── Config bar ── */
+    #config-bar { padding: 9px 20px; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .config-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); }
 
-    /* Source toggle */
-    .source-toggle {
-      display: flex;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      overflow: hidden;
-    }
-    .source-toggle button {
-      padding: 6px 16px;
-      border: none;
-      background: transparent;
-      color: var(--muted);
-      cursor: pointer;
-      font-size: 12px;
-      font-weight: 500;
-      transition: all .2s;
-    }
-    .source-toggle button.active {
-      background: var(--accent);
-      color: #fff;
-    }
-    .source-toggle button:hover:not(.active) {
-      background: var(--border);
-      color: var(--text);
-    }
+    .source-toggle { display: flex; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+    .source-toggle button { padding: 5px 14px; border: none; background: transparent; color: var(--muted); cursor: pointer; font-size: 12px; font-weight: 500; transition: all .15s; }
+    .source-toggle button.active { background: var(--accent); color: #fff; }
+    .source-toggle button:hover:not(.active) { background: var(--border); color: var(--text); }
 
-    /* Source inputs */
     #local-inputs, #dd-inputs { display: none; align-items: center; gap: 8px; flex-wrap: wrap; }
     #local-inputs.visible, #dd-inputs.visible { display: flex; }
 
     input[type="text"], input[type="password"], select {
-      padding: 6px 10px;
-      border-radius: 6px;
-      border: 1px solid var(--border);
-      background: var(--surface2);
-      color: var(--text);
-      font-size: 12px;
-      outline: none;
-      transition: border-color .2s;
+      padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border);
+      background: var(--surface2); color: var(--text); font-size: 12px; outline: none;
+      transition: border-color .15s, box-shadow .15s;
     }
-    input[type="text"]:focus,
-    input[type="password"]:focus,
-    select:focus { border-color: var(--accent); }
-    input[type="text"]::placeholder { color: var(--muted); }
-    input[type="password"]::placeholder { color: var(--muted); }
-    select { cursor: pointer; }
-    select option { background: var(--surface2); }
-
+    input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(88,166,255,.1); }
+    input::placeholder { color: var(--muted); }
+    select { cursor: pointer; } select option { background: var(--surface2); }
     #path-input { width: 340px; font-family: var(--font-mono); font-size: 11px; }
-    #dd-apikey  { width: 220px; }
-    #dd-appkey  { width: 220px; }
-    #dd-query   { width: 200px; }
+    #dd-apikey { width: 210px; } #dd-appkey { width: 210px; } #dd-query { width: 200px; }
 
-    /* Buttons */
     .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 14px;
-      border-radius: 6px;
-      border: 1px solid var(--border);
-      background: var(--surface2);
-      color: var(--text);
-      cursor: pointer;
-      font-size: 12px;
-      font-weight: 500;
-      transition: all .2s;
-      white-space: nowrap;
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 5px 14px; border-radius: 6px; border: 1px solid var(--border);
+      background: var(--surface2); color: var(--text); cursor: pointer;
+      font-size: 12px; font-weight: 500; transition: all .12s;
+      white-space: nowrap; text-decoration: none;
     }
-    .btn:hover { background: var(--border); }
-    .btn:disabled { opacity: .4; cursor: not-allowed; }
-    .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-    .btn.primary:hover { background: #4c9be6; }
-    .btn.danger  { background: rgba(248,81,73,.15); border-color: var(--red); color: var(--red); }
-    .btn.danger:hover { background: rgba(248,81,73,.25); }
-    .btn.sm { padding: 4px 10px; font-size: 11px; }
+    .btn:hover  { background: var(--surface3); border-color: #484f58; }
+    .btn:active { transform: scale(.97); }
+    .btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+    .btn.primary { background: #1f6feb; border-color: #388bfd; color: #fff; }
+    .btn.primary:hover { background: #388bfd; }
+    .btn.danger  { background: rgba(248,81,73,.12); border-color: rgba(248,81,73,.4); color: var(--red); }
+    .btn.danger:hover  { background: rgba(248,81,73,.22); }
+    .btn.success { background: rgba(63,185,80,.12); border-color: rgba(63,185,80,.4); color: var(--green); }
+    .btn.success:hover { background: rgba(63,185,80,.22); }
+    .btn.sm { padding: 3px 10px; font-size: 11px; }
 
-    /* ── Stats bar ───────────────────────────────────────────────────── */
+    /* ── Stats bar ── */
     #stats-bar {
-      display: flex;
-      gap: 8px;
-      padding: 8px 20px;
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      flex-shrink: 0;
+      display: flex; align-items: stretch;
+      background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0;
     }
-    .stat-chip {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 12px;
-      border-radius: 20px;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      font-size: 11px;
+    .stat-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 7px 18px; border-right: 1px solid var(--border);
     }
-    .stat-chip .stat-num {
-      font-weight: 700;
-      font-size: 13px;
-    }
-    .stat-chip.total  { color: var(--text); }
-    .stat-chip.inc    { color: var(--accent); border-color: rgba(88,166,255,.3); }
-    .stat-chip.crit   { color: var(--sev-critical); border-color: rgba(248,81,73,.3); }
-    .stat-chip.high   { color: var(--sev-high); border-color: rgba(251,143,68,.3); }
-    .stat-chip.med    { color: var(--sev-medium); border-color: rgba(227,179,65,.3); }
+    .stat-item:last-child { border-right: none; }
+    .stat-icon { font-size: 15px; opacity: .65; }
+    .stat-content { display: flex; flex-direction: column; line-height: 1.1; }
+    .stat-num   { font-size: 17px; font-weight: 700; font-family: var(--font-mono); letter-spacing: -.5px; }
+    .stat-label { font-size: 9.5px; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); margin-top: 1px; }
+    .s-total .stat-num { color: var(--text); }
+    .s-inc   .stat-num { color: var(--accent); }
+    .s-crit  .stat-num { color: var(--sev-critical); }
+    .s-high  .stat-num { color: var(--sev-high); }
+    .s-med   .stat-num { color: var(--sev-medium); }
+    .stat-spacer { flex: 1; }
 
-    /* ── Main panels ─────────────────────────────────────────────────── */
-    #panels {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      grid-template-rows: 1fr;
-      gap: 0;
-      flex: 1;
-      min-height: 0;
-      overflow: hidden;
-    }
-
-    .panel {
-      display: flex;
-      flex-direction: column;
-      min-height: 0;
-      overflow: hidden;
-      border-right: 1px solid var(--border);
-    }
+    /* ── Panels ── */
+    #panels { display: grid; grid-template-columns: 1fr 1fr; flex: 1; min-height: 0; overflow: hidden; }
+    .panel { display: flex; flex-direction: column; min-height: 0; overflow: hidden; border-right: 1px solid var(--border); }
     .panel:last-child { border-right: none; }
 
     .panel-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 16px;
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      flex-shrink: 0;
+      display: flex; align-items: center; gap: 8px;
+      height: 40px; padding: 0 14px;
+      background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0;
     }
-    .panel-title {
-      font-size: 12px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: .5px;
-      color: var(--muted);
-    }
-    .panel-count {
-      margin-left: auto;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 1px 8px;
-      font-size: 11px;
-      color: var(--muted);
-    }
-    .panel-actions { display: flex; gap: 6px; margin-left: 8px; }
+    .panel-title  { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
+    .panel-count  { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 1px 8px; font-size: 10px; color: var(--muted); font-family: var(--font-mono); }
+    .panel-space  { flex: 1; }
+    .panel-actions { display: flex; gap: 5px; align-items: center; }
 
-    /* ── Log stream panel ─────────────────────────────────────────────── */
-    #log-stream {
-      flex: 1;
-      min-height: 0;
-      overflow-y: auto;
-      padding: 8px 12px;
-      font-family: var(--font-mono);
-      font-size: 11.5px;
-      line-height: 1.6;
-      background: #0a0d12;
+    /* ── Tabs ── */
+    .tab-bar { display: flex; height: 100%; flex: 1; }
+    .tab-btn {
+      padding: 0 15px; height: 100%; border: none;
+      border-bottom: 2px solid transparent; background: transparent;
+      color: var(--muted); cursor: pointer; font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .5px; transition: all .15s;
+      display: flex; align-items: center; gap: 5px; white-space: nowrap;
     }
-    #log-stream::-webkit-scrollbar { width: 6px; }
-    #log-stream::-webkit-scrollbar-track { background: transparent; }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); background: rgba(88,166,255,.04); }
+
+    /* ── Log stream ── */
+    #log-stream {
+      flex: 1; min-height: 0; overflow-y: auto;
+      padding: 6px 10px; font-family: var(--font-mono);
+      font-size: 11.5px; line-height: 1.55; background: #0a0e14;
+    }
+    #log-stream::-webkit-scrollbar { width: 5px; }
     #log-stream::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
-    .log-entry {
-      display: flex;
-      gap: 8px;
-      padding: 2px 4px;
-      border-radius: 4px;
-      transition: background .1s;
-    }
-    .log-entry:hover { background: rgba(255,255,255,.03); }
-    .log-entry.actionable {
-      background: rgba(227,179,65,.05);
-      border-left: 2px solid var(--yellow);
-      padding-left: 8px;
-    }
+    .log-entry { display: flex; gap: 8px; padding: 1px 4px; border-radius: 3px; }
+    .log-entry:hover { background: rgba(255,255,255,.025); }
+    .log-entry.actionable { background: rgba(227,179,65,.04); border-left: 2px solid var(--yellow); padding-left: 6px; }
     .log-entry.actionable.ERROR,
-    .log-entry.actionable.FATAL {
-      background: rgba(248,81,73,.05);
-      border-left-color: var(--red);
-    }
+    .log-entry.actionable.FATAL { background: rgba(248,81,73,.04); border-left-color: var(--red); }
 
-    .log-ts {
-      color: var(--muted);
-      white-space: nowrap;
-      flex-shrink: 0;
-      font-size: 11px;
-    }
-    .log-lvl {
-      font-weight: 700;
-      font-size: 10px;
-      width: 38px;
-      flex-shrink: 0;
-      letter-spacing: .3px;
-    }
-    .log-svc {
-      color: var(--purple);
-      flex-shrink: 0;
-      max-width: 130px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .log-msg {
-      color: var(--text);
-      word-break: break-word;
-      white-space: pre-wrap;
-    }
+    .log-ts  { color: var(--muted); white-space: nowrap; flex-shrink: 0; font-size: 10.5px; }
+    .log-lvl { font-weight: 700; font-size: 9.5px; width: 36px; flex-shrink: 0; letter-spacing: .4px; }
+    .log-svc { color: var(--purple); flex-shrink: 0; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .log-msg { color: var(--text); word-break: break-word; white-space: pre-wrap; }
     .log-msg.expandable { cursor: pointer; }
 
-    .log-entry .log-lvl.INFO  { color: var(--lvl-info); }
-    .log-entry .log-lvl.WARN,
-    .log-entry .log-lvl.WARNING { color: var(--lvl-warn); }
-    .log-entry .log-lvl.ERROR { color: var(--lvl-error); }
-    .log-entry .log-lvl.DEBUG { color: var(--lvl-debug); }
-    .log-entry .log-lvl.FATAL { color: var(--lvl-fatal); }
-    .log-entry .log-lvl.UNKNOWN { color: var(--muted); }
+    .log-lvl.INFO    { color: #58a6ff; }
+    .log-lvl.WARN, .log-lvl.WARNING { color: #e3b341; }
+    .log-lvl.ERROR   { color: #f85149; }
+    .log-lvl.DEBUG   { color: #6e7681; }
+    .log-lvl.FATAL   { color: #d2a8ff; }
+    .log-lvl.UNKNOWN { color: var(--muted); }
 
-    .log-system {
-      color: var(--accent);
-      font-style: italic;
-      padding: 4px 0;
-      font-size: 11px;
-    }
-    .log-error-msg {
-      color: var(--red);
-      padding: 4px 0;
-      font-size: 11px;
-    }
+    .log-system    { color: var(--accent); font-style: italic; padding: 3px 0; font-size: 10.5px; }
+    .log-error-msg { color: var(--red); padding: 3px 0; font-size: 10.5px; }
 
-    /* ── Incidents panel ──────────────────────────────────────────────── */
-    #incident-stream {
-      flex: 1;
-      min-height: 0;
-      overflow-y: auto;
-      padding: 10px 12px 20px;
+    /* ── Incident / RCA lists ── */
+    #incident-stream, #rca-jobs-list {
+      flex: 1; min-height: 0; overflow-y: auto; padding: 10px 12px 20px;
     }
-    #incident-stream::-webkit-scrollbar { width: 6px; }
-    #incident-stream::-webkit-scrollbar-track { background: transparent; }
-    #incident-stream::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    #incident-stream::-webkit-scrollbar,
+    #rca-jobs-list::-webkit-scrollbar { width: 5px; }
+    #incident-stream::-webkit-scrollbar-thumb,
+    #rca-jobs-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
-    .empty-state {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      color: var(--muted);
-      font-size: 12px;
-      padding: 80px 40px;
-      text-align: center;
-    }
-    .empty-state .icon { font-size: 36px; opacity: .4; }
+    .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 60px 40px; text-align: center; }
+    .es-icon  { font-size: 30px; opacity: .3; margin-bottom: 4px; }
+    .es-title { font-size: 13px; font-weight: 600; color: var(--text); opacity: .45; }
+    .es-sub   { font-size: 11px; color: var(--muted); opacity: .55; max-width: 200px; }
 
-    /* Incident card */
+    @keyframes slide-in { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
+
+    /* ── Incident card ── */
     .incident-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      overflow: hidden;
-      animation: slide-in .25s ease;
-      margin-bottom: 10px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+      animation: slide-in .2s ease; margin-bottom: 8px; position: relative;
     }
-    @keyframes slide-in {
-      from { opacity: 0; transform: translateY(-8px); }
-      to   { opacity: 1; transform: translateY(0); }
+    .incident-card::before {
+      content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
     }
+    .incident-card.sev-CRITICAL::before { background: var(--sev-critical); }
+    .incident-card.sev-HIGH::before     { background: var(--sev-high); }
+    .incident-card.sev-MEDIUM::before   { background: var(--sev-medium); }
+    .incident-card.sev-LOW::before      { background: var(--sev-low); }
 
     .inc-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 14px;
-      background: var(--surface2);
-      border-bottom: 1px solid var(--border2);
+      display: flex; align-items: center; gap: 7px;
+      padding: 7px 12px 7px 15px;
+      background: rgba(0,0,0,.18); border-bottom: 1px solid var(--border2);
     }
-    .sev-badge {
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: .5px;
-      text-transform: uppercase;
-    }
-    .sev-CRITICAL { background: rgba(248,81,73,.2);  color: var(--sev-critical); border: 1px solid rgba(248,81,73,.4); }
-    .sev-HIGH     { background: rgba(251,143,68,.2); color: var(--sev-high);     border: 1px solid rgba(251,143,68,.4); }
-    .sev-MEDIUM   { background: rgba(227,179,65,.2); color: var(--sev-medium);   border: 1px solid rgba(227,179,65,.4); }
-    .sev-LOW      { background: rgba(63,185,80,.2);  color: var(--sev-low);      border: 1px solid rgba(63,185,80,.4); }
+    .sev-badge { padding: 1px 7px; border-radius: 3px; font-size: 9px; font-weight: 800; letter-spacing: .7px; text-transform: uppercase; }
+    .sev-CRITICAL { background: rgba(248,81,73,.18);  color: var(--sev-critical); }
+    .sev-HIGH     { background: rgba(251,143,68,.18); color: var(--sev-high); }
+    .sev-MEDIUM   { background: rgba(227,179,65,.18); color: var(--sev-medium); }
+    .sev-LOW      { background: rgba(63,185,80,.18);  color: var(--sev-low); }
 
-    .inc-id   { font-size: 11px; color: var(--muted); font-family: var(--font-mono); }
-    .db-badge {
-      padding: 2px 7px;
-      border-radius: 4px;
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: .4px;
-      text-transform: uppercase;
-      background: rgba(110,118,129,.15);
-      border: 1px solid rgba(110,118,129,.35);
-      color: var(--muted);
-    }
-    .inc-time { margin-left: auto; font-size: 11px; color: var(--muted); font-family: var(--font-mono); }
+    .inc-id   { font-size: 10px; color: var(--muted); font-family: var(--font-mono); }
+    .db-badge { padding: 1px 6px; border-radius: 3px; font-size: 9px; font-weight: 700; text-transform: uppercase; background: rgba(110,118,129,.12); border: 1px solid rgba(110,118,129,.25); color: var(--gray); }
+    .inc-time { margin-left: auto; font-size: 10px; color: var(--muted); font-family: var(--font-mono); white-space: nowrap; }
 
-    .inc-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+    .inc-body { padding: 10px 12px 10px 15px; display: flex; flex-direction: column; gap: 8px; }
+    .inc-service-name { font-size: 13px; font-weight: 600; color: var(--text); }
 
-    .inc-meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-    }
-    .meta-tag {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      padding: 2px 8px;
-      background: var(--surface2);
-      border: 1px solid var(--border2);
-      border-radius: 4px;
-      font-size: 11px;
-      color: var(--muted);
-    }
-    .meta-tag .key { color: var(--muted); white-space: nowrap; }
-    .meta-tag .val { color: var(--text); font-family: var(--font-mono); font-size: 10.5px; word-break: break-all; }
+    .inc-meta { display: flex; flex-wrap: wrap; gap: 4px; }
+    .meta-tag { display: flex; align-items: center; gap: 3px; padding: 2px 7px; background: var(--surface2); border: 1px solid var(--border2); border-radius: 4px; font-size: 10.5px; }
+    .meta-tag .key { color: var(--muted); }
+    .meta-tag .val { color: var(--text); font-family: var(--font-mono); font-size: 10px; word-break: break-all; }
 
-    .inc-section { display: flex; flex-direction: column; gap: 4px; }
-    .inc-section-title {
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: .5px;
-      color: var(--accent);
-    }
-    .inc-section-body {
-      font-size: 12px;
-      color: var(--text);
-      line-height: 1.6;
-      word-break: break-word;
-      overflow-wrap: break-word;
-      white-space: pre-wrap;
-    }
-    .inc-action-body {
-      font-size: 12px;
-      color: var(--green);
-      line-height: 1.6;
-      word-break: break-word;
-      overflow-wrap: break-word;
-      white-space: pre-wrap;
-    }
+    .inc-section { display: flex; flex-direction: column; gap: 3px; }
+    .inc-section-title { font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--accent); }
+    .inc-section-body  { font-size: 11.5px; color: var(--text);  line-height: 1.55; word-break: break-word; white-space: pre-wrap; }
+    .inc-action-body   { font-size: 11.5px; color: var(--green); line-height: 1.55; word-break: break-word; white-space: pre-wrap; }
 
-    .inc-raw-toggle {
-      font-size: 11px;
-      color: var(--accent);
-      cursor: pointer;
-      text-decoration: underline;
-      text-underline-offset: 2px;
-      width: fit-content;
-    }
-    .inc-raw {
-      display: none;
-      background: #0a0d12;
-      border: 1px solid var(--border2);
-      border-radius: 5px;
-      padding: 8px 10px;
-      font-family: var(--font-mono);
-      font-size: 10.5px;
-      color: var(--muted);
-      white-space: pre-wrap;
-      word-break: break-word;
-      max-height: 200px;
-      overflow-y: auto;
-    }
+    .inc-raw-toggle { font-size: 10.5px; color: var(--accent); cursor: pointer; width: fit-content; opacity: .7; }
+    .inc-raw-toggle:hover { opacity: 1; }
+    .inc-raw { display: none; background: #0a0e14; border: 1px solid var(--border2); border-radius: 4px; padding: 6px 9px; font-family: var(--font-mono); font-size: 10px; color: var(--muted); white-space: pre-wrap; word-break: break-word; max-height: 160px; overflow-y: auto; }
     .inc-raw.open { display: block; }
 
-    /* ── File selection modal ─────────────────────────────────────────── */
-    #modal-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,.7);
-      z-index: 1000;
-      align-items: center;
-      justify-content: center;
+    .inc-rca-footer { display: flex; align-items: center; gap: 7px; padding: 6px 12px 6px 15px; border-top: 1px solid var(--border2); background: rgba(0,0,0,.12); flex-wrap: wrap; }
+    .inc-rca-status-text { font-size: 10.5px; color: var(--muted); display: flex; align-items: center; gap: 3px; }
+
+    /* ── RCA job cards ── */
+    .rca-job-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+      animation: slide-in .2s ease; margin-bottom: 8px; position: relative;
     }
+    .rca-job-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+    .rca-job-card.st-running::before   { background: var(--accent); }
+    .rca-job-card.st-completed::before { background: var(--green); }
+    .rca-job-card.st-failed::before    { background: var(--red); }
+    .rca-job-card.st-queued::before    { background: var(--gray); }
+
+    .rca-job-header { display: flex; align-items: center; gap: 8px; padding: 7px 12px 7px 15px; background: rgba(0,0,0,.18); border-bottom: 1px solid var(--border2); }
+    .rca-status-badge { padding: 1px 7px; border-radius: 3px; font-size: 9px; font-weight: 800; letter-spacing: .7px; text-transform: uppercase; }
+    .rca-s-queued    { background: rgba(110,118,129,.15); color: var(--muted); }
+    .rca-s-running   { background: rgba(88,166,255,.15);  color: var(--accent); animation: pbadge 1.4s ease infinite; }
+    .rca-s-completed { background: rgba(63,185,80,.15);   color: var(--green); }
+    .rca-s-failed    { background: rgba(248,81,73,.15);   color: var(--red); }
+    @keyframes pbadge { 0%,100%{opacity:1} 50%{opacity:.55} }
+
+    .rca-job-inc  { font-size: 11px; color: var(--accent); font-family: var(--font-mono); }
+    .rca-job-id   { font-size: 10px; color: var(--muted);  font-family: var(--font-mono); }
+    .rca-job-time { margin-left: auto; font-size: 10px; color: var(--muted); font-family: var(--font-mono); white-space: nowrap; }
+
+    .rca-job-body    { padding: 10px 12px 10px 15px; display: flex; flex-direction: column; gap: 8px; }
+    .rca-job-meta    { font-size: 10.5px; color: var(--muted); font-family: var(--font-mono); }
+    .rca-job-error   { font-size: 10.5px; color: var(--red); font-family: var(--font-mono); word-break: break-word; }
+    .rca-job-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+    /* ── RCA Drawer ── */
+    #rca-backdrop {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.5); backdrop-filter: blur(2px); z-index: 499;
+    }
+    #rca-backdrop.open { display: block; }
+
+    #rca-drawer {
+      position: fixed; top: 0; right: -100%;
+      width: min(700px,100vw); height: 100vh;
+      background: var(--surface); border-left: 1px solid var(--border);
+      display: flex; flex-direction: column; z-index: 500;
+      transition: right .28s cubic-bezier(.4,0,.2,1);
+      box-shadow: -10px 0 50px rgba(0,0,0,.55);
+    }
+    #rca-drawer.open { right: 0; }
+
+    .rca-drawer-header {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+      padding: 12px 16px;
+      background: linear-gradient(180deg,#1a2332 0%,var(--surface2) 100%);
+      border-bottom: 1px solid var(--border); flex-shrink: 0;
+    }
+    .rca-dh-info { display: flex; flex-direction: column; line-height: 1.2; }
+    .rca-drawer-title  { font-size: 14px; font-weight: 700; color: var(--text); }
+    .rca-drawer-job-id { font-size: 10px; color: var(--muted); font-family: var(--font-mono); margin-top: 2px; }
+    .rca-drawer-spacer { flex: 1; min-width: 8px; }
+
+    /* ── Timeline events ── */
+    #rca-stream-events {
+      flex: 1; min-height: 0; overflow-y: auto;
+      padding: 16px 16px 24px 38px;
+      display: flex; flex-direction: column; gap: 0;
+      position: relative;
+    }
+    #rca-stream-events::-webkit-scrollbar { width: 5px; }
+    #rca-stream-events::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* Vertical connector line */
+    #rca-stream-events.has-events::before {
+      content: ''; position: absolute;
+      left: 19px; top: 20px; bottom: 20px;
+      width: 2px;
+      background: linear-gradient(180deg,rgba(48,54,61,.9) 0%,rgba(48,54,61,.1) 100%);
+      pointer-events: none;
+    }
+
+    .rca-event {
+      position: relative; border-radius: 6px;
+      padding: 8px 10px; font-size: 12px; line-height: 1.5;
+      border: 1px solid transparent; margin-bottom: 7px;
+    }
+
+    /* Timeline dot — center aligns with connector at left:19px in container.
+       Event starts at padding-left:38px. Dot left: -(38-19-4) = -15px → dot center at 38-15+4=...
+       Let's do: dot left = -22px → from container: 38-22=16, center=16+4=20 ≈ connector center 19+1=20 ✓ */
+    .rca-event::before {
+      content: ''; position: absolute;
+      left: -22px; top: 12px;
+      width: 8px; height: 8px;
+      border-radius: 50%; border: 2px solid var(--surface);
+    }
+
+    .rca-ev-start::before       { background: var(--accent); }
+    .rca-ev-repo::before        { background: var(--green); }
+    .rca-ev-reasoning::before   { background: var(--purple); }
+    .rca-ev-tool_call::before   { background: var(--orange); }
+    .rca-ev-tool_result::before { background: var(--gray); }
+    .rca-ev-cache_hit::before   { background: var(--gray); opacity: .5; }
+    .rca-ev-complete::before    { background: var(--green); box-shadow: 0 0 8px rgba(63,185,80,.6); }
+    .rca-ev-error::before       { background: var(--red); }
+
+    .rca-ev-start       { background: rgba(88,166,255,.07);  border-color: rgba(88,166,255,.2);  color: var(--accent); }
+    .rca-ev-repo        { background: rgba(63,185,80,.07);   border-color: rgba(63,185,80,.2);   color: var(--green); }
+    .rca-ev-reasoning   { background: rgba(210,168,255,.05); border-color: rgba(210,168,255,.15); color: var(--text); font-style: italic; }
+    .rca-ev-tool_call   { background: rgba(251,143,68,.07);  border-color: rgba(251,143,68,.2);  color: var(--orange); }
+    .rca-ev-tool_result { background: rgba(110,118,129,.05); border-color: rgba(110,118,129,.15); color: var(--muted); font-family: var(--font-mono); font-size: 11px; }
+    .rca-ev-cache_hit   { background: rgba(110,118,129,.03); border-color: rgba(110,118,129,.1);  color: var(--gray); font-size: 11px; }
+    .rca-ev-complete    { background: rgba(63,185,80,.1);    border-color: rgba(63,185,80,.3);   color: var(--green); }
+    .rca-ev-error       { background: rgba(248,81,73,.1);    border-color: rgba(248,81,73,.3);   color: var(--red); }
+
+    .rca-ev-label { font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; margin-bottom: 3px; opacity: .6; }
+    .rca-ev-body  { word-break: break-word; white-space: pre-wrap; }
+    .rca-ev-body.truncated { max-height: 100px; overflow: hidden; cursor: pointer; position: relative; }
+    .rca-ev-body.truncated::after {
+      content: '▸ show more'; position: absolute; bottom: 0; left: 0; right: 0;
+      background: linear-gradient(transparent,rgba(22,27,34,.95));
+      padding: 22px 0 2px; font-size: 9.5px; color: var(--accent);
+      font-style: normal; text-align: center;
+    }
+    .rca-ev-body.expanded { max-height: none; }
+    .rca-ev-body.expanded::after { display: none; }
+
+    /* ── Modal ── */
+    #modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75); backdrop-filter: blur(3px); z-index: 1000; align-items: center; justify-content: center; }
     #modal-overlay.open { display: flex; }
-
-    #modal {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 24px;
-      width: 480px;
-      max-width: 95vw;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      animation: modal-in .2s ease;
-    }
-    @keyframes modal-in {
-      from { opacity: 0; transform: scale(.96); }
-      to   { opacity: 1; transform: scale(1); }
-    }
-    #modal h2 {
-      font-size: 16px;
-      font-weight: 600;
-    }
-    #modal p {
-      font-size: 12px;
-      color: var(--muted);
-      line-height: 1.6;
-    }
+    #modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; width: 480px; max-width: 95vw; display: flex; flex-direction: column; gap: 16px; animation: min .15s ease; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
+    @keyframes min { from{opacity:0;transform:scale(.95) translateY(8px)} to{opacity:1;transform:scale(1) translateY(0)} }
+    #modal h2 { font-size: 15px; font-weight: 700; }
+    #modal p  { font-size: 12px; color: var(--muted); line-height: 1.6; }
     .modal-field { display: flex; flex-direction: column; gap: 6px; }
-    .modal-field label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
+    .modal-field label { font-size: 10.5px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
     .modal-field input[type="text"] { width: 100%; font-family: var(--font-mono); font-size: 12px; }
-
     .modal-browse-row { display: flex; gap: 8px; align-items: center; }
-    .modal-browse-row input[type="text"] { flex: 1; }
+    .modal-browse-row input { flex: 1; }
     #selected-filename { font-size: 11px; color: var(--green); font-family: var(--font-mono); word-break: break-all; }
-
     .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
 
-    /* ── Scrollbar global ─────────────────────────────────────────────── */
     * { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
   </style>
 </head>
@@ -570,10 +405,14 @@
   <!-- Header -->
   <div id="header">
     <div class="logo">
-      <span class="icon">🛡️</span>
-      <span>Self-Healing Agent Dashboard</span>
+      <div class="logo-icon">🛡️</div>
+      <div class="logo-text">
+        <span class="logo-title">Self-Healing Agent</span>
+        <span class="logo-sub">Autonomous Incident Management</span>
+      </div>
     </div>
-    <div class="spacer"></div>
+    <div class="hdr-div"></div>
+    <div class="hdr-space"></div>
     <div id="status-badge">
       <div class="dot"></div>
       <span id="status-text">IDLE</span>
@@ -589,57 +428,70 @@
         <button id="btn-dd"    onclick="selectSource('datadog')">🐶 Datadog</button>
       </div>
 
-      <!-- Local inputs -->
       <div id="local-inputs">
-        <input id="path-input" type="text"
-               placeholder="e.g. ../bank-application/logs/banking-app.log"
-               value="{{ default_path }}" />
+        <input id="path-input" type="text" placeholder="../bank-application/logs/banking-app.log" value="{{ default_path }}" />
         <button class="btn sm" onclick="openFileModal()">Browse</button>
-        <button class="btn sm" onclick="useDefaultPath()">Use Default</button>
+        <button class="btn sm" onclick="useDefaultPath()">Default</button>
       </div>
 
-      <!-- Datadog inputs -->
       <div id="dd-inputs">
         <input id="dd-apikey" type="password" placeholder="DD-API-KEY" />
-        <input id="dd-appkey" type="password" placeholder="DD-APPLICATION-KEY" />
+        <input id="dd-appkey" type="password" placeholder="DD-APP-KEY" />
         <select id="dd-site">
-          <option value="datadoghq.com">datadoghq.com (US1)</option>
-          <option value="us3.datadoghq.com">us3.datadoghq.com (US3)</option>
-          <option value="us5.datadoghq.com" selected>us5.datadoghq.com (US5)</option>
-          <option value="datadoghq.eu">datadoghq.eu (EU)</option>
-          <option value="ap1.datadoghq.com">ap1.datadoghq.com (AP1)</option>
+          <option value="datadoghq.com">US1</option>
+          <option value="us3.datadoghq.com">US3</option>
+          <option value="us5.datadoghq.com" selected>US5</option>
+          <option value="datadoghq.eu">EU</option>
+          <option value="ap1.datadoghq.com">AP1</option>
         </select>
-        <input id="dd-query" type="text" placeholder="Query e.g. service:banking-app" />
+        <input id="dd-query" type="text" placeholder="service:banking-app" />
       </div>
 
-      <div style="margin-left:auto; display:flex; gap:8px;">
-        <button class="btn primary" id="btn-start" onclick="startMonitoring()" disabled>
-          ▶ Start
-        </button>
-        <button class="btn danger" id="btn-stop"  onclick="stopMonitoring()" disabled>
-          ■ Stop
-        </button>
+      <div style="margin-left:auto;display:flex;gap:7px">
+        <button class="btn primary" id="btn-start" onclick="startMonitoring()" disabled>▶ Start</button>
+        <button class="btn danger"  id="btn-stop"  onclick="stopMonitoring()" disabled>■ Stop</button>
       </div>
     </div>
   </div>
 
   <!-- Stats bar -->
   <div id="stats-bar">
-    <div class="stat-chip total">
-      <span>Total Logs</span><span class="stat-num" id="stat-total">0</span>
+    <div class="stat-item s-total">
+      <div class="stat-icon">📊</div>
+      <div class="stat-content">
+        <span class="stat-num"   id="stat-total">0</span>
+        <span class="stat-label">Total Logs</span>
+      </div>
     </div>
-    <div class="stat-chip inc">
-      <span>Incidents</span><span class="stat-num" id="stat-inc">0</span>
+    <div class="stat-item s-inc">
+      <div class="stat-icon">⚡</div>
+      <div class="stat-content">
+        <span class="stat-num"   id="stat-inc">0</span>
+        <span class="stat-label">Incidents</span>
+      </div>
     </div>
-    <div class="stat-chip crit">
-      <span>Critical</span><span class="stat-num" id="stat-crit">0</span>
+    <div class="stat-item s-crit">
+      <div class="stat-icon">🔴</div>
+      <div class="stat-content">
+        <span class="stat-num"   id="stat-crit">0</span>
+        <span class="stat-label">Critical</span>
+      </div>
     </div>
-    <div class="stat-chip high">
-      <span>High</span><span class="stat-num" id="stat-high">0</span>
+    <div class="stat-item s-high">
+      <div class="stat-icon">🟠</div>
+      <div class="stat-content">
+        <span class="stat-num"   id="stat-high">0</span>
+        <span class="stat-label">High</span>
+      </div>
     </div>
-    <div class="stat-chip med">
-      <span>Medium</span><span class="stat-num" id="stat-med">0</span>
+    <div class="stat-item s-med">
+      <div class="stat-icon">🟡</div>
+      <div class="stat-content">
+        <span class="stat-num"   id="stat-med">0</span>
+        <span class="stat-label">Medium</span>
+      </div>
     </div>
+    <div class="stat-spacer"></div>
   </div>
 
   <!-- Main panels -->
@@ -648,32 +500,48 @@
     <!-- Left: Log stream -->
     <div class="panel">
       <div class="panel-header">
-        <span>📋</span>
+        <span style="font-size:14px">📋</span>
         <span class="panel-title">Live Log Stream</span>
-        <span class="panel-count" id="log-count">0 lines</span>
+        <span class="panel-count" id="log-count">0</span>
+        <div class="panel-space"></div>
         <div class="panel-actions">
-          <button class="btn sm" onclick="toggleAutoScroll()" id="btn-scroll" title="Auto-scroll">↓ Auto</button>
+          <button class="btn sm" onclick="toggleAutoScroll()" id="btn-scroll">↓ Auto</button>
           <button class="btn sm" onclick="clearLogs()">Clear</button>
         </div>
       </div>
       <div id="log-stream"></div>
     </div>
 
-    <!-- Right: Incidents -->
+    <!-- Right: Incidents + RCA (tabbed) -->
     <div class="panel">
-      <div class="panel-header">
-        <span>⚡</span>
-        <span class="panel-title">Extracted Incidents</span>
-        <span class="panel-count" id="inc-count">0 incidents</span>
-        <div class="panel-actions">
+      <div class="panel-header" style="padding:0 10px 0 0">
+        <div class="tab-bar">
+          <button class="tab-btn active" id="tab-incidents" onclick="switchTab('incidents')">⚡ Incidents</button>
+          <button class="tab-btn"        id="tab-rca"       onclick="switchTab('rca')">🔬 RCA Jobs</button>
+        </div>
+        <div class="panel-actions" id="incidents-panel-actions">
+          <span class="panel-count" id="inc-count">0</span>
           <button class="btn sm" onclick="clearIncidents()">Clear</button>
         </div>
+        <div class="panel-actions" id="rca-panel-actions" style="display:none">
+          <span class="panel-count" id="rca-job-count">0</span>
+          <button class="btn sm" onclick="loadRCAJobs()" title="Refresh">↻</button>
+        </div>
       </div>
+
       <div id="incident-stream">
         <div class="empty-state" id="inc-empty">
-          <div class="icon">🔍</div>
-          <div>No incidents yet</div>
-          <div style="font-size:11px">WARN / ERROR logs will appear here with Gemini analysis</div>
+          <div class="es-icon">🔍</div>
+          <div class="es-title">No incidents yet</div>
+          <div class="es-sub">WARN / ERROR logs will appear here with Claude analysis</div>
+        </div>
+      </div>
+
+      <div id="rca-jobs-list" style="display:none">
+        <div class="empty-state" id="rca-empty">
+          <div class="es-icon">🔬</div>
+          <div class="es-title">No RCA jobs yet</div>
+          <div class="es-sub">Click "Run RCA" on an incident card to start analysis</div>
         </div>
       </div>
     </div>
@@ -681,26 +549,46 @@
   </div>
 </div>
 
-<!-- File selection modal -->
+<!-- RCA Drawer backdrop -->
+<div id="rca-backdrop" onclick="closeRCADrawer()"></div>
+
+<!-- RCA Drawer -->
+<div id="rca-drawer">
+  <div class="rca-drawer-header">
+    <span style="font-size:18px;flex-shrink:0">🔬</span>
+    <div class="rca-dh-info">
+      <span class="rca-drawer-title">Root Cause Analysis</span>
+      <span class="rca-drawer-job-id" id="rca-drawer-job-id"></span>
+    </div>
+    <span id="rca-drawer-status-badge"></span>
+    <div class="rca-drawer-spacer"></div>
+    <a   id="rca-report-link" class="btn sm success" style="display:none;text-decoration:none" target="_blank">📊 Report</a>
+    <button id="rca-stop-btn" class="btn sm danger"  style="display:none" onclick="stopRCA()">■ Stop</button>
+    <button class="btn sm" onclick="closeRCADrawer()">✕</button>
+  </div>
+  <div id="rca-stream-events">
+    <div class="empty-state" id="rca-stream-empty">
+      <div class="es-icon">⏳</div>
+      <div class="es-title">Connecting…</div>
+      <div class="es-sub">Waiting for RCA stream events</div>
+    </div>
+  </div>
+</div>
+
+<!-- File modal -->
 <div id="modal-overlay" onclick="closeModalOnOverlay(event)">
   <div id="modal">
     <h2>📁 Select Log File</h2>
-    <p>Enter the full server-side path to the log file you want to monitor in real-time.
-       Use <strong>Browse</strong> to open the file picker and confirm the filename.</p>
-
+    <p>Enter the server-side path to the log file. Use <strong>Browse</strong> to open the file picker and confirm the filename.</p>
     <div class="modal-field">
       <label>File Path</label>
       <div class="modal-browse-row">
-        <input type="text" id="modal-path"
-               value="{{ default_path }}"
-               placeholder="../bank-application/logs/banking-app.log" />
+        <input type="text" id="modal-path" value="{{ default_path }}" placeholder="../bank-application/logs/banking-app.log" />
         <button class="btn sm" onclick="triggerFilePicker()">Browse</button>
       </div>
       <input type="file" id="file-picker" style="display:none" onchange="onFilePicked(event)" />
     </div>
-
     <div id="selected-filename"></div>
-
     <div class="modal-actions">
       <button class="btn" onclick="closeModal()">Cancel</button>
       <button class="btn primary" onclick="confirmPath()">Confirm</button>
@@ -709,25 +597,48 @@
 </div>
 
 <script>
-  /* ── State ─────────────────────────────────────────────────────────── */
-  let source        = null;
-  let logCount      = 0;
-  let incCount      = 0;
-  let autoScroll    = true;
-  let logSse        = null;
-  let incSse        = null;
-  let statsInterval = null;
+  /* ── State ── */
+  let source         = null;
+  let logCount       = 0;
+  let incCount       = 0;
+  let rcaJobCount    = 0;
+  let autoScroll     = true;
+  let logSse         = null;
+  let incSse         = null;
+  let rcaSse         = null;
+  let activeRCAJobId = null;
+  let rcaRefreshInt  = null;
+  let statsInterval  = null;
+  let activeTab      = 'incidents';
 
   const DEFAULT_PATH = {{ default_path | tojson }};
 
-  /* ── Init ───────────────────────────────────────────────────────────── */
+  /* ── Init ── */
   window.addEventListener('DOMContentLoaded', () => {
     fetchStatus();
     statsInterval = setInterval(fetchStatus, 3000);
     connectStreams();
+    loadRCAJobs();
   });
 
-  /* ── Source selection ───────────────────────────────────────────────── */
+  /* ── Tab switching ── */
+  function switchTab(tab) {
+    activeTab = tab;
+    document.getElementById('tab-incidents').classList.toggle('active', tab === 'incidents');
+    document.getElementById('tab-rca').classList.toggle('active', tab === 'rca');
+    document.getElementById('incident-stream').style.display = tab === 'incidents' ? '' : 'none';
+    document.getElementById('rca-jobs-list').style.display   = tab === 'rca'       ? '' : 'none';
+    document.getElementById('incidents-panel-actions').style.display = tab === 'incidents' ? '' : 'none';
+    document.getElementById('rca-panel-actions').style.display       = tab === 'rca'       ? '' : 'none';
+    if (tab === 'rca') {
+      loadRCAJobs();
+      if (!rcaRefreshInt) rcaRefreshInt = setInterval(() => { if (activeTab === 'rca') loadRCAJobs(); }, 4000);
+    } else {
+      if (rcaRefreshInt) { clearInterval(rcaRefreshInt); rcaRefreshInt = null; }
+    }
+  }
+
+  /* ── Source selection ── */
   function selectSource(src) {
     source = src;
     document.getElementById('btn-local').classList.toggle('active', src === 'local');
@@ -735,71 +646,39 @@
     document.getElementById('local-inputs').classList.toggle('visible', src === 'local');
     document.getElementById('dd-inputs').classList.toggle('visible',    src === 'datadog');
     document.getElementById('btn-start').disabled = false;
-
     if (src === 'local') openFileModal();
   }
 
-  function useDefaultPath() {
-    document.getElementById('path-input').value = DEFAULT_PATH;
-  }
+  function useDefaultPath() { document.getElementById('path-input').value = DEFAULT_PATH; }
 
-  /* ── Modal ──────────────────────────────────────────────────────────── */
+  /* ── Modal ── */
   function openFileModal() {
-    document.getElementById('modal-path').value =
-      document.getElementById('path-input').value || DEFAULT_PATH;
+    document.getElementById('modal-path').value = document.getElementById('path-input').value || DEFAULT_PATH;
     document.getElementById('selected-filename').textContent = '';
     document.getElementById('modal-overlay').classList.add('open');
   }
-
-  function closeModal() {
-    document.getElementById('modal-overlay').classList.remove('open');
-  }
-
-  function closeModalOnOverlay(e) {
-    if (e.target === document.getElementById('modal-overlay')) closeModal();
-  }
-
-  function triggerFilePicker() {
-    document.getElementById('file-picker').click();
-  }
-
+  function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+  function closeModalOnOverlay(e) { if (e.target === document.getElementById('modal-overlay')) closeModal(); }
+  function triggerFilePicker() { document.getElementById('file-picker').click(); }
   function onFilePicked(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    const el = document.getElementById('selected-filename');
-    el.textContent = `Selected: ${file.name}`;
-    // Try to hint the path — browser hides full path, so show hint
-    const modalPath = document.getElementById('modal-path');
-    if (!modalPath.value || modalPath.value === DEFAULT_PATH) {
-      // Leave path as-is; user can adjust
-    }
-    el.textContent += '  — verify / edit the path above if needed';
+    const f = e.target.files[0];
+    if (f) document.getElementById('selected-filename').textContent = `Selected: ${f.name} — verify the path above`;
   }
-
   function confirmPath() {
-    const path = document.getElementById('modal-path').value.trim();
-    if (!path) { alert('Please enter a file path.'); return; }
-    document.getElementById('path-input').value = path;
+    const p = document.getElementById('modal-path').value.trim();
+    if (!p) { alert('Please enter a file path.'); return; }
+    document.getElementById('path-input').value = p;
     closeModal();
   }
 
-  /* ── Start / Stop ───────────────────────────────────────────────────── */
+  /* ── Start / Stop monitoring ── */
   async function startMonitoring() {
     const cfg = buildConfig();
     if (!cfg) return;
-
-    await fetch('/api/config', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(cfg),
-    });
-
-    // Load stored incidents from DB first — no re-analysis, just display
+    await fetch('/api/config', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(cfg) });
     await loadStoredIncidents();
-
     const res  = await fetch('/api/start', { method: 'POST' });
     const data = await res.json();
-
     if (data.status === 'started' || data.status === 'already_running') {
       document.getElementById('btn-start').disabled = true;
       document.getElementById('btn-stop').disabled  = false;
@@ -812,27 +691,23 @@
     try {
       const rows = await fetch('/api/incidents').then(r => r.json());
       if (!Array.isArray(rows) || rows.length === 0) return;
-
-      // Clear the empty-state placeholder before adding cards
       const empty = document.getElementById('inc-empty');
       if (empty) empty.remove();
-
-      rows.forEach(row => {
-        appendIncident({
-          id:               row.id,
-          timestamp:        row.log_timestamp || row.created_at || '',
-          service:          row.service || '',
-          level:            '',
-          severity:         row.severity || 'HIGH',
-          exception_type:   row.exception_type,
-          trace_id:         row.trace_id,
-          analysis:         row.analysis || '',
-          suggested_action: row.suggested_action || '',
-          application_name: row.application_name || '',
-          raw_log:          null,
-          from_db:          true,   // flag — renders a "Stored" badge
-        });
-      });
+      rows.forEach(row => appendIncident({
+        id:               row.id,
+        timestamp:        row.log_timestamp || row.created_at || '',
+        service:          row.service || '',
+        level:            '',
+        severity:         row.severity || 'HIGH',
+        exception_type:   row.exception_type,
+        trace_id:         row.trace_id,
+        analysis:         row.analysis || '',
+        suggested_action: row.suggested_action || '',
+        application_name: row.application_name || '',
+        raw_log:          null,
+        from_db:          true,
+        rca_status:       row.rca_status || null,
+      }));
       appendSystemLog('info', `Loaded ${rows.length} stored incident(s) from DB.`);
     } catch (_) {}
   }
@@ -845,13 +720,11 @@
 
   function buildConfig() {
     if (!source) { alert('Please select a source first.'); return null; }
-
     if (source === 'local') {
       const path = document.getElementById('path-input').value.trim();
       if (!path) { alert('Please enter a file path.'); return null; }
       return { source: 'local', local_path: path };
     }
-
     const apiKey = document.getElementById('dd-apikey').value.trim();
     const appKey = document.getElementById('dd-appkey').value.trim();
     if (!apiKey || !appKey) { alert('Please enter both Datadog API Key and Application Key.'); return null; }
@@ -864,13 +737,12 @@
     };
   }
 
-  /* ── Status polling ─────────────────────────────────────────────────── */
+  /* ── Status polling ── */
   async function fetchStatus() {
     try {
-      const data = await fetch('/api/status').then(r => r.json());
+      const data  = await fetch('/api/status').then(r => r.json());
       const badge = document.getElementById('status-badge');
       const text  = document.getElementById('status-text');
-
       if (data.running) {
         badge.className = 'running';
         text.textContent = data.source === 'datadog' ? 'LIVE · DATADOG' : 'LIVE · LOCAL';
@@ -880,7 +752,6 @@
         badge.className = '';
         text.textContent = 'IDLE';
       }
-
       const s = data.stats || {};
       document.getElementById('stat-total').textContent = s.total_logs || 0;
       document.getElementById('stat-inc').textContent   = s.incidents  || 0;
@@ -890,25 +761,19 @@
     } catch (_) {}
   }
 
-  /* ── SSE streams ────────────────────────────────────────────────────── */
+  /* ── SSE streams ── */
   function connectStreams() {
     if (logSse) logSse.close();
     if (incSse) incSse.close();
-
     logSse = new EventSource('/api/logs/stream');
-    logSse.onmessage = e => {
-      try { handleLogEvent(JSON.parse(e.data)); } catch (_) {}
-    };
-
+    logSse.onmessage = e => { try { handleLogEvent(JSON.parse(e.data)); } catch (_) {} };
     incSse = new EventSource('/api/incidents/stream');
-    incSse.onmessage = e => {
-      try { handleIncidentEvent(JSON.parse(e.data)); } catch (_) {}
-    };
+    incSse.onmessage = e => { try { handleIncidentEvent(JSON.parse(e.data)); } catch (_) {} };
   }
 
-  /* ── Log rendering ──────────────────────────────────────────────────── */
+  /* ── Log rendering ── */
   function handleLogEvent(data) {
-    if (data.type === 'system') { appendSystemLog('info', data.message); return; }
+    if (data.type === 'system') { appendSystemLog('info',  data.message); return; }
     if (data.type === 'error')  { appendSystemLog('error', data.message); return; }
     if (data.type === 'log')    { appendLogLine(data); }
   }
@@ -922,25 +787,21 @@
 
   function appendLogLine(data) {
     logCount++;
-    document.getElementById('log-count').textContent = `${logCount} lines`;
-
+    document.getElementById('log-count').textContent = logCount;
     const level = (data.level || 'UNKNOWN').toUpperCase();
     const entry = document.createElement('div');
     entry.className = `log-entry ${level}${data.actionable ? ' actionable' : ''}`;
 
-    // Timestamp
     const tsEl = document.createElement('span');
     tsEl.className = 'log-ts';
     tsEl.textContent = shortTs(data.timestamp);
     entry.appendChild(tsEl);
 
-    // Level badge
     const lvlEl = document.createElement('span');
     lvlEl.className = `log-lvl ${level}`;
     lvlEl.textContent = level.substring(0, 5);
     entry.appendChild(lvlEl);
 
-    // Service
     if (data.service) {
       const svcEl = document.createElement('span');
       svcEl.className = 'log-svc';
@@ -948,39 +809,30 @@
       entry.appendChild(svcEl);
     }
 
-    // Message
     const msgEl = document.createElement('span');
     msgEl.className = 'log-msg';
     const raw = data.raw || data.message || '';
-    const displayMsg = raw.length > 200 ? raw.substring(0, 200) + '…' : raw;
-    msgEl.textContent = displayMsg;
+    const display = raw.length > 200 ? raw.substring(0, 200) + '…' : raw;
+    msgEl.textContent = display;
     if (raw.length > 200) {
       msgEl.classList.add('expandable');
-      let expanded = false;
+      let exp = false;
       msgEl.title = 'Click to expand';
-      msgEl.onclick = () => {
-        expanded = !expanded;
-        msgEl.textContent = expanded ? raw : displayMsg;
-      };
+      msgEl.onclick = () => { exp = !exp; msgEl.textContent = exp ? raw : display; };
     }
     entry.appendChild(msgEl);
-
     pushToLogStream(entry);
   }
 
   function pushToLogStream(el) {
-    const stream = document.getElementById('log-stream');
-    stream.appendChild(el);
-    // Keep DOM lean: remove old entries beyond 2000
-    while (stream.childElementCount > 2000) {
-      stream.removeChild(stream.firstChild);
-    }
-    if (autoScroll) stream.scrollTop = stream.scrollHeight;
+    const s = document.getElementById('log-stream');
+    s.appendChild(el);
+    while (s.childElementCount > 2000) s.removeChild(s.firstChild);
+    if (autoScroll) s.scrollTop = s.scrollHeight;
   }
 
   function shortTs(ts) {
     if (!ts) return '';
-    // Show only HH:MM:SS.mmm
     const m = ts.match(/(\d{2}:\d{2}:\d{2})/);
     return m ? m[1] : ts.substring(0, 19);
   }
@@ -995,10 +847,10 @@
   function clearLogs() {
     document.getElementById('log-stream').innerHTML = '';
     logCount = 0;
-    document.getElementById('log-count').textContent = '0 lines';
+    document.getElementById('log-count').textContent = '0';
   }
 
-  /* ── Incident rendering ─────────────────────────────────────────────── */
+  /* ── Incident rendering ── */
   function handleIncidentEvent(data) {
     if (data.type !== 'incident') return;
     appendIncident(data);
@@ -1007,15 +859,15 @@
   function appendIncident(data) {
     const empty = document.getElementById('inc-empty');
     if (empty) empty.remove();
-
     incCount++;
-    document.getElementById('inc-count').textContent = `${incCount} incident${incCount !== 1 ? 's' : ''}`;
+    document.getElementById('inc-count').textContent = incCount;
 
-    const sev = (data.severity || 'HIGH').toUpperCase();
+    const sev  = (data.severity || 'HIGH').toUpperCase();
     const card = document.createElement('div');
-    card.className = 'incident-card';
+    card.className = `incident-card sev-${sev}`;
+    if (data.id) card.dataset.incidentId = data.id;
 
-    // ── Header row
+    /* Header */
     const hdr = document.createElement('div');
     hdr.className = 'inc-header';
 
@@ -1024,122 +876,468 @@
     badge.textContent = sev;
     hdr.appendChild(badge);
 
-    const lvlBadge = document.createElement('span');
-    lvlBadge.className = `sev-badge sev-${sev}`;
-    lvlBadge.style.background = 'transparent';
-    lvlBadge.style.border = 'none';
-    lvlBadge.style.color = 'var(--muted)';
-    lvlBadge.style.fontSize = '11px';
-    lvlBadge.textContent = data.level || '';
-    hdr.appendChild(lvlBadge);
-
     if (data.id) {
       const idEl = document.createElement('span');
       idEl.className = 'inc-id';
       idEl.textContent = `#${data.id}`;
       hdr.appendChild(idEl);
     }
-
-    // "Stored" badge for incidents loaded from DB (not freshly analysed)
     if (data.from_db) {
-      const dbBadge = document.createElement('span');
-      dbBadge.className = 'db-badge';
-      dbBadge.textContent = 'Stored';
-      hdr.appendChild(dbBadge);
+      const db = document.createElement('span');
+      db.className = 'db-badge';
+      db.textContent = 'Stored';
+      hdr.appendChild(db);
     }
-
     const timeEl = document.createElement('span');
     timeEl.className = 'inc-time';
     timeEl.textContent = data.timestamp ? data.timestamp.substring(0, 19) : '';
     hdr.appendChild(timeEl);
-
     card.appendChild(hdr);
 
-    // ── Body
+    /* Body */
     const body = document.createElement('div');
     body.className = 'inc-body';
 
-    // Meta tags
+    if (data.service) {
+      const sn = document.createElement('div');
+      sn.className = 'inc-service-name';
+      sn.textContent = data.service;
+      body.appendChild(sn);
+    }
+
     const meta = document.createElement('div');
     meta.className = 'inc-meta';
-
-    if (data.application_name) meta.appendChild(makeTag('App', data.application_name));
-    if (data.service)          meta.appendChild(makeTag('Service', data.service));
+    if (data.application_name) meta.appendChild(makeTag('App',       data.application_name));
     if (data.exception_type)   meta.appendChild(makeTag('Exception', data.exception_type));
-    if (data.trace_id)         meta.appendChild(makeTag('Trace', data.trace_id));
-
+    if (data.trace_id)         meta.appendChild(makeTag('Trace',     data.trace_id));
+    if (data.level)            meta.appendChild(makeTag('Level',     data.level));
     if (meta.childElementCount > 0) body.appendChild(meta);
 
-    // Analysis
-    if (data.analysis) {
-      const sec = makeSection('Root Cause Analysis', data.analysis, false);
-      body.appendChild(sec);
-    }
+    if (data.analysis)         body.appendChild(makeSection('Root Cause',       data.analysis,         false));
+    if (data.suggested_action) body.appendChild(makeSection('Suggested Action', data.suggested_action, true));
 
-    // Suggested action
-    if (data.suggested_action) {
-      const sec = makeSection('Suggested Action', data.suggested_action, true);
-      body.appendChild(sec);
-    }
-
-    // Raw log toggle
     if (data.raw_log) {
-      const toggle = document.createElement('span');
-      toggle.className = 'inc-raw-toggle';
-      toggle.textContent = '▸ Show raw log';
-      body.appendChild(toggle);
-
+      const tog = document.createElement('span');
+      tog.className = 'inc-raw-toggle';
+      tog.textContent = '▸ Raw log';
+      body.appendChild(tog);
       const raw = document.createElement('pre');
       raw.className = 'inc-raw';
       raw.textContent = data.raw_log;
       body.appendChild(raw);
-
-      toggle.onclick = () => {
+      tog.onclick = () => {
         const open = raw.classList.toggle('open');
-        toggle.textContent = open ? '▾ Hide raw log' : '▸ Show raw log';
+        tog.textContent = open ? '▾ Raw log' : '▸ Raw log';
       };
     }
-
     card.appendChild(body);
 
-    // Prepend to stream (newest first)
+    /* RCA Footer */
+    if (data.id) {
+      const footer = document.createElement('div');
+      footer.className = 'inc-rca-footer';
+      footer.id = `rca-footer-${data.id}`;
+
+      const stEl = document.createElement('span');
+      stEl.className = 'inc-rca-status-text';
+      stEl.id = `rca-status-${data.id}`;
+      stEl.textContent = rcaStatusLabel(data.rca_status);
+      footer.appendChild(stEl);
+
+      const sp = document.createElement('div');
+      sp.style.flex = '1';
+      footer.appendChild(sp);
+
+      if (data.rca_status === 'completed') {
+        const vb = document.createElement('button');
+        vb.className = 'btn sm success';
+        vb.textContent = '📊 Jobs';
+        vb.onclick = () => switchTab('rca');
+        footer.appendChild(vb);
+      }
+
+      const rcaBtn = document.createElement('button');
+      rcaBtn.className = 'btn sm primary';
+      rcaBtn.id = `rca-btn-${data.id}`;
+      rcaBtn.textContent = data.rca_status === 'running' ? '⏳ Running…' : '🔬 Run RCA';
+      rcaBtn.disabled = data.rca_status === 'running';
+      rcaBtn.onclick = () => runRCA(data.id, rcaBtn);
+      footer.appendChild(rcaBtn);
+      card.appendChild(footer);
+    }
+
     const stream = document.getElementById('incident-stream');
     stream.insertBefore(card, stream.firstChild);
   }
 
+  function rcaStatusLabel(status) {
+    if (!status || status === 'pending') return '';
+    return { running: '⏳ RCA running…', completed: '✅ RCA complete', failed: '❌ RCA failed' }[status] || `RCA: ${status}`;
+  }
+
   function makeTag(key, val) {
-    const tag = document.createElement('div');
-    tag.className = 'meta-tag';
-    tag.innerHTML = `<span class="key">${key}:</span><span class="val">${escapeHtml(String(val))}</span>`;
-    return tag;
+    const t = document.createElement('div');
+    t.className = 'meta-tag';
+    t.innerHTML = `<span class="key">${key}:</span><span class="val">${escapeHtml(String(val))}</span>`;
+    return t;
   }
 
   function makeSection(title, text, isAction) {
     const sec = document.createElement('div');
     sec.className = 'inc-section';
-    const t = document.createElement('div');
-    t.className = 'inc-section-title';
-    t.textContent = title;
-    const b = document.createElement('div');
-    b.className = isAction ? 'inc-action-body' : 'inc-section-body';
-    b.textContent = text;
-    sec.appendChild(t);
-    sec.appendChild(b);
+    const tt = document.createElement('div');
+    tt.className = 'inc-section-title';
+    tt.textContent = title;
+    const bb = document.createElement('div');
+    bb.className = isAction ? 'inc-action-body' : 'inc-section-body';
+    bb.textContent = text;
+    sec.appendChild(tt);
+    sec.appendChild(bb);
     return sec;
   }
 
   function clearIncidents() {
-    const stream = document.getElementById('incident-stream');
-    stream.innerHTML =
-      `<div class="empty-state" id="inc-empty">
-        <div class="icon">🔍</div>
-        <div>No incidents yet</div>
-        <div style="font-size:11px">WARN / ERROR logs will appear here with Gemini analysis</div>
-       </div>`;
+    document.getElementById('incident-stream').innerHTML = `
+      <div class="empty-state" id="inc-empty">
+        <div class="es-icon">🔍</div>
+        <div class="es-title">No incidents yet</div>
+        <div class="es-sub">WARN / ERROR logs will appear here with Claude analysis</div>
+      </div>`;
     incCount = 0;
-    document.getElementById('inc-count').textContent = '0 incidents';
+    document.getElementById('inc-count').textContent = '0';
   }
 
+  /* ── RCA: Run ── */
+  async function runRCA(incidentId, btn) {
+    btn.disabled = true;
+    btn.textContent = '⏳ Starting…';
+    const stEl = document.getElementById(`rca-status-${incidentId}`);
+    if (stEl) stEl.textContent = '⏳ RCA running…';
+
+    try {
+      const res  = await fetch('/api/rca/run', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ incident_id: incidentId }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        btn.textContent = '⏳ Running…';
+        switchTab('rca');
+        openRCADrawer(data.job_id);
+        loadRCAJobs();
+      } else {
+        btn.disabled = false;
+        btn.textContent = '🔬 Run RCA';
+        if (stEl) stEl.textContent = '';
+        alert(data.error || data.message || 'Failed to start RCA');
+      }
+    } catch (e) {
+      btn.disabled = false;
+      btn.textContent = '🔬 Run RCA';
+      if (stEl) stEl.textContent = '';
+      alert('Network error: ' + e.message);
+    }
+  }
+
+  /* ── RCA: Jobs list ── */
+  async function loadRCAJobs() {
+    try {
+      const jobs = await fetch('/api/rca/jobs').then(r => r.json());
+      if (!Array.isArray(jobs)) return;
+
+      const list = document.getElementById('rca-jobs-list');
+      list.innerHTML = '';
+
+      if (jobs.length === 0) {
+        list.innerHTML = `
+          <div class="empty-state" id="rca-empty">
+            <div class="es-icon">🔬</div>
+            <div class="es-title">No RCA jobs yet</div>
+            <div class="es-sub">Click "Run RCA" on an incident card to start analysis</div>
+          </div>`;
+        rcaJobCount = 0;
+        document.getElementById('rca-job-count').textContent = '0';
+        return;
+      }
+
+      rcaJobCount = jobs.length;
+      document.getElementById('rca-job-count').textContent = rcaJobCount;
+      jobs.forEach(job => appendRCAJob(job, list));
+    } catch (_) {}
+  }
+
+  function appendRCAJob(job, container) {
+    const card = document.createElement('div');
+    card.className = `rca-job-card st-${job.status}`;
+    card.id = `rca-job-card-${job.job_id}`;
+
+    const hdr = document.createElement('div');
+    hdr.className = 'rca-job-header';
+
+    const sb = document.createElement('span');
+    sb.className = `rca-status-badge rca-s-${job.status}`;
+    sb.id = `rca-job-badge-${job.job_id}`;
+    sb.textContent = job.status.toUpperCase();
+    hdr.appendChild(sb);
+
+    const inc = document.createElement('span');
+    inc.className = 'rca-job-inc';
+    inc.textContent = `Incident #${job.incident_id}`;
+    hdr.appendChild(inc);
+
+    const jid = document.createElement('span');
+    jid.className = 'rca-job-id';
+    jid.textContent = job.job_id.substring(0, 8) + '…';
+    jid.title = job.job_id;
+    hdr.appendChild(jid);
+
+    const tm = document.createElement('span');
+    tm.className = 'rca-job-time';
+    tm.textContent = job.started_at ? job.started_at.substring(0, 19) : '';
+    hdr.appendChild(tm);
+    card.appendChild(hdr);
+
+    const body = document.createElement('div');
+    body.className = 'rca-job-body';
+
+    if (job.completed_at && job.started_at) {
+      const secs = Math.round((new Date(job.completed_at) - new Date(job.started_at)) / 1000);
+      const dur = document.createElement('div');
+      dur.className = 'rca-job-meta';
+      dur.textContent = `Duration: ${secs}s · Completed: ${job.completed_at.substring(0, 19)}`;
+      body.appendChild(dur);
+    }
+    if (job.error) {
+      const err = document.createElement('div');
+      err.className = 'rca-job-error';
+      err.textContent = job.error.substring(0, 300);
+      body.appendChild(err);
+    }
+
+    const acts = document.createElement('div');
+    acts.className = 'rca-job-actions';
+
+    const wb = document.createElement('button');
+    wb.className = 'btn sm';
+    wb.textContent = '👁 Watch Stream';
+    wb.onclick = () => openRCADrawer(job.job_id);
+    acts.appendChild(wb);
+
+    if (job.status === 'completed') {
+      const rb = document.createElement('a');
+      rb.className = 'btn sm success';
+      rb.style.textDecoration = 'none';
+      rb.href   = `/api/rca/report/${job.job_id}`;
+      rb.target = '_blank';
+      rb.textContent = '📊 View Report';
+      acts.appendChild(rb);
+    }
+
+    body.appendChild(acts);
+    card.appendChild(body);
+    container.appendChild(card);
+  }
+
+  /* Immediately update a job card in-place (avoids stale-status race condition) */
+  function updateJobCardStatus(jobId, newStatus) {
+    if (!jobId) return;
+
+    const badge = document.getElementById(`rca-job-badge-${jobId}`);
+    if (badge) {
+      badge.className = `rca-status-badge rca-s-${newStatus}`;
+      badge.textContent = newStatus.toUpperCase();
+    }
+
+    const card = document.getElementById(`rca-job-card-${jobId}`);
+    if (card) {
+      card.className = card.className.replace(/\bst-\w+\b/, `st-${newStatus}`);
+      if (newStatus === 'completed') {
+        const acts = card.querySelector('.rca-job-actions');
+        if (acts && !acts.querySelector('a.success')) {
+          const rb = document.createElement('a');
+          rb.className = 'btn sm success';
+          rb.style.textDecoration = 'none';
+          rb.href   = `/api/rca/report/${jobId}`;
+          rb.target = '_blank';
+          rb.textContent = '📊 View Report';
+          acts.appendChild(rb);
+        }
+        // Add duration if possible (approximate — exact value comes on loadRCAJobs)
+        const metaEl = card.querySelector('.rca-job-meta');
+        if (!metaEl) {
+          const body = card.querySelector('.rca-job-body');
+          if (body) {
+            const dur = document.createElement('div');
+            dur.className = 'rca-job-meta';
+            dur.textContent = 'Completed';
+            body.insertBefore(dur, body.firstChild);
+          }
+        }
+      }
+    }
+  }
+
+  /* ── RCA: Stream Drawer ── */
+  function openRCADrawer(jobId) {
+    activeRCAJobId = jobId;
+    if (rcaSse) { rcaSse.close(); rcaSse = null; }
+
+    document.getElementById('rca-drawer-job-id').textContent = jobId.substring(0, 8) + '…';
+    document.getElementById('rca-drawer-job-id').title = jobId;
+    document.getElementById('rca-drawer-status-badge').innerHTML = '';
+    document.getElementById('rca-report-link').style.display = 'none';
+    document.getElementById('rca-stop-btn').style.display = 'none';
+
+    const evEl = document.getElementById('rca-stream-events');
+    evEl.innerHTML = `
+      <div class="empty-state" id="rca-stream-empty">
+        <div class="es-icon">⏳</div>
+        <div class="es-title">Connecting…</div>
+        <div class="es-sub">Waiting for RCA stream events</div>
+      </div>`;
+    evEl.classList.remove('has-events');
+
+    document.getElementById('rca-drawer').classList.add('open');
+    document.getElementById('rca-backdrop').classList.add('open');
+
+    rcaSse = new EventSource(`/api/rca/stream/${jobId}`);
+    rcaSse.onmessage = e => { try { handleRCAStreamEvent(JSON.parse(e.data)); } catch (_) {} };
+    rcaSse.onerror = () => { rcaSse.close(); rcaSse = null; };
+  }
+
+  function closeRCADrawer() {
+    if (rcaSse) { rcaSse.close(); rcaSse = null; }
+    document.getElementById('rca-drawer').classList.remove('open');
+    document.getElementById('rca-backdrop').classList.remove('open');
+    activeRCAJobId = null;
+  }
+
+  function handleRCAStreamEvent(data) {
+    const evEl    = document.getElementById('rca-stream-events');
+    const emptyEl = document.getElementById('rca-stream-empty');
+    if (emptyEl) { emptyEl.remove(); evEl.classList.add('has-events'); }
+
+    const type = data.type || 'info';
+
+    if (type === 'done') {
+      // DB write is now complete — reload the jobs list
+      setTimeout(() => loadRCAJobs(), 600);
+      return;
+    }
+
+    if (type === 'error') {
+      appendRCAEvent(evEl, 'error', '❌ Error', data.message || data.error || 'Unknown error');
+      setDrawerStatus('failed');
+      updateJobCardStatus(activeRCAJobId, 'failed');
+      setTimeout(() => loadRCAJobs(), 600);
+      return;
+    }
+
+    switch (type) {
+      case 'start':
+        appendRCAEvent(evEl, 'start', '▶ Started',
+          data.message || `Analyzing: ${data.service || 'unknown'}  ·  ${data.error_type || ''}`);
+        setDrawerStatus('running');
+        break;
+
+      case 'repo_resolved':
+        appendRCAEvent(evEl, 'repo', '🔗 Repo Resolved',
+          `${data.org}/${data.repo}  (branch: ${data.branch || 'main'})  via: ${data.discovered_via || 'lookup'}`);
+        break;
+
+      case 'reasoning':
+        appendRCAEvent(evEl, 'reasoning', '🤔 Claude Reasoning', data.text || data.message || '');
+        break;
+
+      case 'tool_call': {
+        const args = data.args ? JSON.stringify(data.args, null, 2) : '';
+        appendRCAEvent(evEl, 'tool_call', `🔧 ${data.tool}`,
+          args.length > 600 ? args.substring(0, 600) + '\n…' : args);
+        break;
+      }
+
+      case 'tool_result': {
+        const res = typeof data.result === 'string' ? data.result : JSON.stringify(data.result, null, 2);
+        appendRCAEvent(evEl, 'tool_result', `↩ ${data.tool || 'Result'}`,
+          res.length > 800 ? res.substring(0, 800) + '\n…' : res);
+        break;
+      }
+
+      case 'cache_hit':
+        appendRCAEvent(evEl, 'cache_hit', '⚡ Cache Hit', data.key || data.message || '');
+        break;
+
+      case 'complete': {
+        const detail = [
+          data.confidence ? `Confidence: ${data.confidence}` : '',
+          data.iterations ? `Iterations: ${data.iterations}` : '',
+        ].filter(Boolean).join('  ·  ');
+        appendRCAEvent(evEl, 'complete', '✅ Analysis Complete',
+          detail || 'Root cause analysis completed successfully.');
+        setDrawerStatus('completed');
+        updateJobCardStatus(activeRCAJobId, 'completed');  // immediate in-place update
+        break;
+      }
+
+      default:
+        appendRCAEvent(evEl, 'start', type, JSON.stringify(data));
+    }
+
+    evEl.scrollTop = evEl.scrollHeight;
+  }
+
+  function appendRCAEvent(container, cssClass, label, body) {
+    const el = document.createElement('div');
+    el.className = `rca-event rca-ev-${cssClass}`;
+
+    const lbl = document.createElement('div');
+    lbl.className = 'rca-ev-label';
+    lbl.textContent = label;
+    el.appendChild(lbl);
+
+    if (body) {
+      const bd = document.createElement('div');
+      bd.className = 'rca-ev-body';
+      bd.textContent = body;
+      if (body.length > 400) {
+        bd.classList.add('truncated');
+        bd.onclick = () => { bd.classList.toggle('truncated'); bd.classList.toggle('expanded'); };
+      }
+      el.appendChild(bd);
+    }
+
+    container.appendChild(el);
+  }
+
+  function setDrawerStatus(status) {
+    const el = document.getElementById('rca-drawer-status-badge');
+    const cls = { running:'rca-s-running', completed:'rca-s-completed', failed:'rca-s-failed', stopping:'rca-s-failed' };
+    el.innerHTML = `<span class="rca-status-badge ${cls[status]||''}">${status.toUpperCase()}</span>`;
+
+    const stopBtn = document.getElementById('rca-stop-btn');
+    if (stopBtn) stopBtn.style.display = status === 'running' ? '' : 'none';
+
+    const reportLink = document.getElementById('rca-report-link');
+    if (reportLink && status === 'completed') {
+      reportLink.href = `/api/rca/report/${activeRCAJobId}`;
+      reportLink.style.display = '';
+    }
+  }
+
+  async function stopRCA() {
+    if (!activeRCAJobId) return;
+    const btn = document.getElementById('rca-stop-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Stopping…'; }
+    try {
+      await fetch(`/api/rca/stop/${activeRCAJobId}`, { method: 'POST' });
+      setDrawerStatus('stopping');
+    } catch (_) {
+      if (btn) { btn.disabled = false; btn.textContent = '■ Stop'; }
+    }
+  }
+
+  /* ── Utilities ── */
   function escapeHtml(s) {
     return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }

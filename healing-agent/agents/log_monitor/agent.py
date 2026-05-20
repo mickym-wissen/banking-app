@@ -6,7 +6,7 @@ from langgraph.graph import END, START, StateGraph
 from agents.core import AgentRegistry, BaseAgent
 from agents.log_monitor.nodes import (
     LogMonitorState,
-    analyze_with_gemini,
+    analyze_with_claude,
     parse_log_entry,
     route_after_parse,
     send_alert,
@@ -37,7 +37,7 @@ class LogMonitorAgent(BaseAgent):
     def build_graph(self):
         g = StateGraph(LogMonitorState)
         g.add_node("parse",   parse_log_entry)
-        g.add_node("analyze", analyze_with_gemini)
+        g.add_node("analyze", analyze_with_claude)
         g.add_node("store",   store_to_db)
         g.add_node("alert",   send_alert)
         g.add_edge(START, "parse")

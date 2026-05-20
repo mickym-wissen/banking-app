@@ -1,9 +1,10 @@
-langchain>=0.3.0
-langchain-google-genai>=2.0.0
 langchain-core>=0.3.0
 langgraph>=0.2.0
-google-generativeai>=0.8.0
 mysql-connector-python>=9.0.0
 python-dotenv>=1.0.0
 flask>=3.0.0
 requests>=2.31.0
+anthropic>=0.40.0
+PyGithub>=2.0.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
